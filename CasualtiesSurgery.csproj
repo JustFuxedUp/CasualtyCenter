@@ -1,10 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net471</TargetFramework>
-    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
+    <TargetFramework>net472</TargetFramework>
+    <AutomaticallyUseReferenceAssemblyPackages>true</AutomaticallyUseReferenceAssemblyPackages>
     <LangVersion>latest</LangVersion>
     <AssemblyName>CasualtiesSurgery</AssemblyName>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
   <Import Project="GamePath.local.props" Condition="Exists('GamePath.local.props')" />
@@ -12,6 +12,9 @@
     <ManagedPath>$(GamePath)\CasualtiesUnknown_Data\Managed</ManagedPath>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+    <Reference Include="CUCoreLib"><HintPath>lib/CUCoreLib/1.1/CUCoreLib.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(ManagedPath)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="BepInEx"><HintPath>$(GamePath)\BepInEx\core\BepInEx.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine"><HintPath>$(ManagedPath)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedPath)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
@@ -19,6 +22,7 @@
     <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(ManagedPath)\UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
   <Target Name="CheckGamePath" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('lib/CUCoreLib/1.1/CUCoreLib.dll')" Text="Run scripts/Restore-Libraries.ps1 to fetch the pinned CUCoreLib dependency." />
     <Error Condition="!Exists('$(GamePath)\BepInEx\core\BepInEx.dll')" Text="Set GamePath in GamePath.local.props to your game folder with BepInEx installed." />
     <Error Condition="!Exists('$(ManagedPath)\UnityEngine.CoreModule.dll')" Text="The game Managed folder was not found. Check GamePath." />
   </Target>

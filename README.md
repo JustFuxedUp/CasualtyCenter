@@ -1,66 +1,46 @@
-# Casualties Surgery — starter project
+# Casualties Surgery
 
-A starting point for a Trauma Center-inspired surgery mod for Casualties: Unknown.
-The working title and plugin identifier are provisional.
+Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## What this build does
+## Current build: 0.2.0 foundation
 
-Loads through BepInEx 5 and adds an F8 development panel. It writes its startup
-message and the game's reported version to BepInEx/LogOutput.log. It does not
-change injuries, inventory, saves, crafting, or multiplayer behavior.
+F8 opens a read-only inspector showing the local player's fragment count, skin
+health, and bleeding for each limb. No treatment, crafting, inventory changes,
+or multiplayer surgery are enabled yet. The procedure rules are tested separately.
+
+- [Library documentation](docs/LIBRARIES.md)
+- [Fragment design and confirmed game fields](docs/FRAGMENT-DESIGN.md)
+- [Code-review guide](docs/REVIEW.md)
 
 ## Build
 
-This machine has a modern .NET SDK at `C:\Program Files\dotnet\dotnet.exe` and
-.NET Framework 4.7.1 reference assemblies. Its default `dotnet` command instead
-points at an older 32-bit installation, so use this command from this directory:
+Requires a current .NET SDK, the local full game with BepInEx 5, and the pinned
+CUCoreLib files. `GamePath.local.props` contains the local game path and is ignored
+by Git; copy the example if setting up another machine.
 
 ```powershell
+.\scripts\Restore-Libraries.ps1
 & 'C:\Program Files\dotnet\dotnet.exe' build .\CasualtiesSurgery.csproj -c Release
+& 'C:\Program Files\dotnet\dotnet.exe' run --project .\tests\ProcedureChecks.csproj -c Release
 ```
 
-`GamePath.local.props` points at your installed game. For another machine, copy
-`GamePath.local.props.example` to that filename and update the path. That local
-file is excluded from Git. Dependencies are referenced from the installation;
-game files are not included in this project or the build output.
+The full SDK path avoids this machine's older 32-bit `dotnet` command. The mod
+targets .NET Framework 4.7.2, matching CUCoreLib; the SDK restores its reference
+assemblies during build. The small standalone rule-check runner targets .NET 10.
 
-The built plugin is `bin/Release/net471/CasualtiesSurgery.dll`.
+## Install for testing
 
-## Try the plugin
+Close the game first. Copy `lib/CUCoreLib/1.1/CUCoreLib.dll` into
+`BepInEx/plugins/CUCoreLib/`. Replace the existing surgery plugin with
+`bin/Release/net472/CasualtiesSurgery.dll` in `BepInEx/plugins/CasualtiesSurgery/`.
+Keep exactly one copy of each plugin DLL in the plugins tree.
 
-1. Close the game.
-2. Create `BepInEx/plugins/CasualtiesSurgery` inside the game folder.
-3. Copy only `CasualtiesSurgery.dll` into that folder.
-4. In `BepInEx/config/BepInEx.cfg`, set `HideManagerGameObject = true`. This protects plugin callbacks from game object cleanup. Restart the game after changing this setting, then press F8. Confirm the panel opens and closes.
-5. Check `BepInEx/LogOutput.log` for the plugin startup message and game version.
+Set `HideManagerGameObject = true` in `BepInEx/config/BepInEx.cfg` and restart.
+Launch normally, enter a run and press F8. Check `BepInEx/LogOutput.log` for both
+plugins. The panel does not pause gameplay or capture all underlying game input.
 
-The panel does not pause the game or capture all gameplay input; test it at the
-main menu first. The hotkey can be changed in the generated BepInEx config.
-To uninstall, close the game and remove this plugin DLL.
+Build does not deploy automatically. CUCoreLib is a required dependency of 0.2.0.
+The previous verified starter remains in Git on `main` and its original net471
+build output is retained locally. Do not confuse that older DLL with this build.
 
-## Development milestones
-
-1. Verify this plugin loads in the full release.
-2. Inspect the installed game's injury model and select one real, treatable condition.
-3. Implement a complete self-treatment procedure with a simple interaction panel.
-4. Add tools, medicine, and recipes using a verified compatible CUCoreLib release.
-5. Integrate patient selection and procedure synchronization with the updated
-   Casualties Together release, then test host and client treatment in both directions.
-6. Add interrupted procedures, death/disconnection handling, saving, and balancing.
-
-Keep procedure rules separate from the game adapter, interface, and multiplayer
-adapter as these are added. A proposed multiplayer model is to submit treatment
-actions to the host for validation and distribute the resulting patient state;
-the actual implementation must fit Together's supported networking mechanisms.
-
-CUCoreLib and Casualties Together are not dependencies of this first load-test
-plugin. Their full-release compatibility has not been verified here.
-
-## References
-
-- https://github.com/jimmyking9999999/CUCoreLib
-- https://github.com/creaturefeaturelarry/casualties-together
-
-The existing installation's log confirms BepInEx 5.4.23.5 and Unity 2022.3.62.
-The game version is believed to be 7.1.0 based on the user's report; confirm it
-using this plugin's startup log or the game UI before adding version-specific hooks.
+No game binaries, downloaded libraries, local paths, or config backups are committed.
