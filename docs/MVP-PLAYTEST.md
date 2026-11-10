@@ -1,5 +1,8 @@
 # 0.3.0 self-surgery MVP playtest
 
+The user verified this MVP in-game. In 0.4.0 the normal entry point moves to the
+[health dummy menu](HEALTH-MENU.md); the minigame controls below remain unchanged.
+
 F8 opens the field surgery panel. Choose an attached, organic limb with fragments.
 Using forceps, hold left mouse on SHARD, follow the green path, and release at END.
 Select Suture and drag START to END three times. The final stitch removes one

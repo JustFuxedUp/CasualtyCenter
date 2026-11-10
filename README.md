@@ -2,10 +2,10 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.3.0 self-surgery MVP
+## Current build: 0.4.0 health-dummy surgery
 
-F8 opens the limb inspector and field surgery panel. On an attached organic limb
-with fragments, use forceps to pull a fragment along its marked path, then use
+Open the normal health screen, right-click a limb on the dummy, and select
+**Extract fragment + suture**. On an attached organic limb with fragments, use forceps to pull a fragment along its marked path, then use
 the suture tool to place three stitches. Completion removes one fragment,
 restores 5 skin points and reduces bleeding by 1 using the latest wound values.
 Healing amounts are configurable. Slips cost 1 skin and add up to 0.2 bleeding.
@@ -14,6 +14,7 @@ This playtest uses free tools: crafting, supplies and multiplayer surgery are
 not implemented. The world keeps running while the panel is open. Game input
 handlers and UI raycasts are blocked behind the panel; verify this in-game.
 
+- [Health menu controls, review and playtest](docs/HEALTH-MENU.md)
 - [MVP playtest and controls](docs/MVP-PLAYTEST.md)
 - [MVP review notes](docs/MVP-REVIEW.md)
 - [Library documentation](docs/LIBRARIES.md)
@@ -44,8 +45,9 @@ Close the game first. Copy `lib/CUCoreLib/1.1/CUCoreLib.dll` into
 Keep exactly one copy of each plugin DLL in the plugins tree.
 
 Set `HideManagerGameObject = true` in `BepInEx/config/BepInEx.cfg` and restart.
-Launch normally, enter a run and press F8. Check `BepInEx/LogOutput.log` for both
-plugins. The panel does not pause gameplay. Follow the MVP playtest before merging.
+Launch normally, enter a run and right-click a limb on the health dummy. Check `BepInEx/LogOutput.log` for both
+plugins. The panel does not pause gameplay. Follow the health menu playtest before merging.
+F8 inspector access is opt-in through `Interface.EnableDebugPanel` in the plugin config.
 
 Build does not deploy automatically. CUCoreLib is a required dependency.
 The previous verified starter remains in Git on `main` and its original net471

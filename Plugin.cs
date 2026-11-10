@@ -10,12 +10,16 @@ using UnityEngine.UI;
 
 namespace CasualtiesSurgery
 {
-    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.3.0")]
+    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.4.0")]
     [BepInDependency("net.cucorelib", "1.1")]
     public sealed class Plugin : BaseUnityPlugin
     {
         static Plugin instance;
-        public static bool BlockInput => instance != null && (instance.visible || Time.frameCount <= instance.releaseFrame);
+        public static bool BlockInput => instance != null && (instance.visible || (instance.healthMenu != null && instance.healthMenu.IsOpen) || Time.frameCount <= instance.releaseFrame);
+        public static bool OperationVisible => instance != null && instance.visible;
+        HealthMenu healthMenu;
+        WoundView sourceHealthView;
+        ConfigEntry<bool> debugPanel;
         ConfigEntry<KeyCode> hotkey;
         ConfigEntry<float> recovery, reduction;
         bool visible;
@@ -36,6 +40,7 @@ namespace CasualtiesSurgery
         void Awake()
         {
             instance = this;
+            debugPanel = Config.Bind("Interface", "EnableDebugPanel", false, "Enable the standalone F8 inspector. Normal surgery starts by right-clicking a limb on the health dummy.");
             hotkey = Config.Bind("Interface", "ToggleKey", KeyCode.F8, "Open or close the surgery panel.");
             recovery = Config.Bind("Treatment", "SkinRecovery", 5f,
                 new ConfigDescription("Skin points restored per completed fragment and suture.", new AcceptableValueRange<float>(0.1f, 100f)));
@@ -49,13 +54,17 @@ namespace CasualtiesSurgery
                 Logger.LogError("Input protection could not initialize; surgery disabled. " + error);
                 return;
             }
+            healthMenu = new HealthMenu(BeginFromHealth, () => releaseFrame = Time.frameCount + 1);
             SceneManager.activeSceneChanged += SceneChanged;
-            Logger.LogInfo("Casualty Center 0.3.0 loaded. F8 opens the singleplayer surgery MVP.");
+            Logger.LogInfo("Casualty Center 0.4.0 loaded. Right-click a limb on the health dummy for surgery.");
         }
 
         void Update()
         {
-            if (Input.GetKeyDown(hotkey.Value))
+            healthMenu?.Tick();
+            if (healthMenu != null && healthMenu.IsOpen && Input.GetKeyDown(KeyCode.Escape))
+            { healthMenu.Close(); return; }
+            if ((debugPanel.Value || visible) && Input.GetKeyDown(hotkey.Value))
             {
                 if (visible) Close();
                 else if (MultiplayerApi.IsRunning) Logger.LogWarning("Surgery MVP is disabled during multiplayer.");
@@ -64,17 +73,31 @@ namespace CasualtiesSurgery
                 else Open();
             }
             if (!visible) return;
+            if (sourceHealthView != null && (!sourceHealthView.gameObject.activeInHierarchy ||
+                (operation != null && sourceHealthView.body != operation.Patient))) { Close(); return; }
             if (Input.GetKeyDown(KeyCode.Escape) || MultiplayerApi.IsRunning) { Close(); return; }
             Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
             if (operation != null)
             {
                 string reason = operation.InvalidReason();
-                if (reason != null) Cancel(reason);
+                if (reason != null) { if (sourceHealthView != null) Close(); else Cancel(reason); }
             }
+        }
+
+        void BeginFromHealth(WoundView source, Limb limb)
+        {
+            if (!enabled || visible || source == null || !source.gameObject.activeInHierarchy ||
+                OperationSession.Ineligible(source.body, limb) != null) return;
+            sourceHealthView = source;
+            operation = new OperationSession(source.body, limb, recovery.Value, reduction.Value);
+            forceps = true; PrepareGesture();
+            message = "Grip the fragment at SHARD and pull to END. Release there.";
+            Open();
         }
 
         void Open()
         {
+            healthMenu?.Close();
             oldLock = Cursor.lockState; oldCursor = Cursor.visible;
             if (blocker == null)
             {
@@ -94,9 +117,14 @@ namespace CasualtiesSurgery
         void Close()
         {
             Cancel("Operation cancelled. Completed treatments and slip damage remain.");
+            sourceHealthView = null;
             visible = false; releaseFrame = Time.frameCount + 1;
             if (blocker != null) blocker.SetActive(false);
             Cursor.lockState = oldLock; Cursor.visible = oldCursor;
+        }
+        void Abort(string reason)
+        {
+            if (sourceHealthView != null) Close(); else Cancel(reason);
         }
         void Cancel(string reason)
         {
@@ -108,12 +136,13 @@ namespace CasualtiesSurgery
             if (gestureControl != 0 && GUIUtility.hotControl == gestureControl) GUIUtility.hotControl = 0;
             gestureControl = 0;
         }
-        void SceneChanged(Scene from, Scene to) { if (visible) Close(); }
-        void OnApplicationFocus(bool focus) { if (!focus && operation != null) Cancel("Focus lost; operation cancelled."); }
-        void OnDisable() { if (visible) Close(); }
+        void SceneChanged(Scene from, Scene to) { healthMenu?.Dispose(); if (visible) Close(); }
+        void OnApplicationFocus(bool focus) { if (!focus) { healthMenu?.Close(); if (visible) Close(); } }
+        void OnDisable() { healthMenu?.Dispose(); if (visible) Close(); }
         void OnDestroy()
         {
             if (visible) Close();
+            healthMenu?.Dispose();
             SceneManager.activeSceneChanged -= SceneChanged;
             harmony?.UnpatchSelf();
             if (blocker != null) Destroy(blocker);
@@ -140,8 +169,8 @@ namespace CasualtiesSurgery
             GUI.Label(new Rect(18, 55, 575, 24), "+" + recovery.Value + " skin / -" + reduction.Value + " bleeding per extraction + suture.");
             if (operation == null) DrawPatient(); else DrawOperation();
             GUI.Label(new Rect(18, 496, 575, 48), message, new GUIStyle(GUI.skin.label) { wordWrap = true });
-            if (GUI.Button(new Rect(18, 550, 280, 28), "Close (F8 / Escape)")) Close();
-            if (operation != null && GUI.Button(new Rect(310, 550, 280, 28), "Cancel operation")) Cancel("Cancelled. No completion reward; slip damage remains.");
+            if (GUI.Button(new Rect(18, 550, 280, 28), sourceHealthView != null ? "Back to health screen" : "Close (F8 / Escape)")) Close();
+            if (operation != null && GUI.Button(new Rect(310, 550, 280, 28), "Cancel operation")) { if (sourceHealthView != null) Close(); else Cancel("Cancelled. No completion reward; slip damage remains."); }
             GUI.DragWindow(new Rect(0, 0, 610, 25));
         }
         void DrawPatient()
@@ -179,7 +208,7 @@ namespace CasualtiesSurgery
         {
             var current = operation;
             string invalid = current.InvalidReason();
-            if (invalid != null) { Cancel(invalid); return; }
+            if (invalid != null) { Abort(invalid); return; }
             bool extraction = current.Procedure.Stage == FragmentStage.Extraction;
             GUI.Label(new Rect(18, 90, 575, 24), current.Limb.fullName + (extraction ? " / EXTRACT ONE FRAGMENT" : " / SUTURE " + (current.Stitches + 1) + " OF 3"));
             if (GUI.Button(new Rect(18, 122, 180, 28), (forceps ? "[Selected] " : "") + "Forceps")) { forceps = true; ReleasePointer(); gesture.Reset(); }
@@ -218,7 +247,7 @@ namespace CasualtiesSurgery
                 else if (extraction)
                 {
                     if (current.Extract()) { PrepareGesture(); message = "Fragment lifted. Select Suture, then complete three stitches."; }
-                    else Cancel("Wound changed. Treatment cancelled.");
+                    else Abort("Wound changed. Treatment cancelled.");
                 }
                 else if (current.Stitch(out bool completed))
                 {
@@ -227,10 +256,11 @@ namespace CasualtiesSurgery
                         message = string.Format("Complete: 1 fragment removed. Skin {0:0.0}/100; bleeding {1:0.00}.", current.Limb.skinHealth, current.Limb.bleedAmount);
                         Logger.LogInfo("Completed fragment treatment on " + current.Limb.fullName + ". " + message);
                         operation = null; gesture = null;
+                        if (sourceHealthView != null) Close();
                     }
                     else { PrepareGesture(); message = "Stitch placed. Continue with the next stitch."; }
                 }
-                else Cancel("Wound changed. Treatment cancelled.");
+                else Abort("Wound changed. Treatment cancelled.");
                 ev.Use();
             }
             GUI.EndGroup();
@@ -240,7 +270,7 @@ namespace CasualtiesSurgery
             ReleasePointer();
             gesture.Reset();
             if (operation.Slip()) message = "Tool slipped: -1 skin, +0.2 bleeding (within wound limits). Try that step again.";
-            else Cancel("Wound changed. Treatment cancelled.");
+            else Abort("Wound changed. Treatment cancelled.");
         }
     }
 }
