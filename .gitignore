@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+GamePath.local.props
+*.user
+
+lib/
+work/
+*.bak
+
