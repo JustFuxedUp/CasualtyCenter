@@ -6,7 +6,8 @@ using UnityEngine;
 namespace CasualtiesSurgery
 {
     [BepInPlugin("local.casualties.surgery", "Casualties Surgery", "0.2.0")]
-    [BepInDependency("net.cucorelib", "1.1.0")]
+    // Match the BepInEx plugin version (1.1), not the DLL assembly version (1.1.0.0).
+    [BepInDependency("net.cucorelib", "1.1")]
     public sealed class Plugin : BaseUnityPlugin
     {
         private ConfigEntry<KeyCode> toggleKey;
