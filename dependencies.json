@@ -1,0 +1,17 @@
+{
+  "CUCoreLib": {
+    "version": "1.1",
+    "assemblyVersion": "1.1.0.0",
+    "targetFramework": "net472",
+    "release": "https://github.com/jimmyking9999999/CUCoreLib/releases/tag/v1.1",
+    "dllSha256": "c0f064260b2671d02bf802c460aa346c6b858ec9269f2ff93439ebabaa940aa3",
+    "xmlSha256": "ddb3a0c0b9366bd88d2b81c9c4680d5e1ac1fbb9ed184ebc75e1c982a18009c8"
+  },
+  "BepInEx": {
+    "version": "5.4.23.5",
+    "source": "Game installation"
+  },
+  "CasualtiesTogether": {
+    "status": "Deferred until full-release integration testing"
+  }
+}
