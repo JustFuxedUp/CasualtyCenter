@@ -5,8 +5,8 @@
 One successful extraction followed by one successful suture immediately reduces
 bleeding and improves skin health on the treated limb. Repeat for each fragment.
 Extraction alone grants no healing reward. Health caps at 100; bleeding floors at 0.
-The amount of each benefit remains a balance decision. Tests use +5 skin and -1
-bleeding as examples, not approved gameplay tuning.
+The MVP defaults to +5 skin and -1 bleeding, configurable for playtesting.
+These are provisional balance values. One suture sequence requires three stitches.
 
 ## Confirmed in the installed full-game assembly
 
@@ -28,26 +28,26 @@ These are inspection findings, not redistributed decompiled game source.
 ## First implementation boundary
 
 `FragmentProcedure` contains the pure sequence and result calculation. It does
-not yet write to game fields. The F8 panel reads the actual limb data to verify
-the integration points before treatment is enabled.
+not write to game fields. In 0.3.0, `OperationSession` validates the patient and
+limb and commits the result. The F8 panel supplies the forceps/suture interactions.
 
 The initial design commits fragment removal and both rewards together after
 suturing. Visually extracted fragments remain staged during the procedure;
-cancellation leaves game health and fragment count unchanged. This avoids
+cancellation grants no healing and removes no fragments. Slip damage persists. This avoids
 invisible pending wounds after save/reload while the prototype has no custom
 persistence. Revisit this behavior when implementing interruption consequences.
 
-Before live treatment, the adapter must revalidate the same patient and limb,
-remaining fragment, living/conscious patient as appropriate, organic attached
-limb, tool/medicine availability, and active operation. It must apply the three
-field changes and inventory costs exactly once using current values. A pure
+The adapter revalidates the same patient and limb, unchanged fragment count,
+living/conscious patient, organic attached limb, and active operation. It applies
+the three field changes exactly once using current values. The free MVP kit has
+no inventory costs; tool/medicine availability checks must accompany future recipes. A pure
 procedure result is not authorization to heal an arbitrary limb.
 
 ## Upcoming review-sized changes
 
-1. Current: dependencies, documentation, read-only inspector, tested pure rules.
-2. Custom extraction/suture interaction and singleplayer adapter, including
-   interrupted actions and validation. Preserve the vanilla extraction option.
+1. Verified: dependencies, documentation, read-only inspector, tested pure rules.
+2. Current MVP: custom extraction/suture interaction and singleplayer adapter,
+   interrupted actions and validation. Vanilla extraction remains available.
 3. Register craftable tools and consumable suture supplies; tune rewards.
 4. Explicit patient selection and host-authoritative Together integration.
 

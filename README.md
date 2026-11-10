@@ -2,15 +2,23 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.2.0 foundation
+## Current build: 0.3.0 self-surgery MVP
 
-F8 opens a read-only inspector showing the local player's fragment count, skin
-health, and bleeding for each limb. No treatment, crafting, inventory changes,
-or multiplayer surgery are enabled yet. The procedure rules are tested separately.
+F8 opens the limb inspector and field surgery panel. On an attached organic limb
+with fragments, use forceps to pull a fragment along its marked path, then use
+the suture tool to place three stitches. Completion removes one fragment,
+restores 5 skin points and reduces bleeding by 1 using the latest wound values.
+Healing amounts are configurable. Slips cost 1 skin and add up to 0.2 bleeding.
 
+This playtest uses free tools: crafting, supplies and multiplayer surgery are
+not implemented. The world keeps running while the panel is open. Game input
+handlers and UI raycasts are blocked behind the panel; verify this in-game.
+
+- [MVP playtest and controls](docs/MVP-PLAYTEST.md)
+- [MVP review notes](docs/MVP-REVIEW.md)
 - [Library documentation](docs/LIBRARIES.md)
 - [Fragment design and confirmed game fields](docs/FRAGMENT-DESIGN.md)
-- [Code-review guide](docs/REVIEW.md)
+- [Foundation review notes](docs/REVIEW.md)
 
 ## Build
 
@@ -37,9 +45,9 @@ Keep exactly one copy of each plugin DLL in the plugins tree.
 
 Set `HideManagerGameObject = true` in `BepInEx/config/BepInEx.cfg` and restart.
 Launch normally, enter a run and press F8. Check `BepInEx/LogOutput.log` for both
-plugins. The panel does not pause gameplay or capture all underlying game input.
+plugins. The panel does not pause gameplay. Follow the MVP playtest before merging.
 
-Build does not deploy automatically. CUCoreLib is a required dependency of 0.2.0.
+Build does not deploy automatically. CUCoreLib is a required dependency.
 The previous verified starter remains in Git on `main` and its original net471
 build output is retained locally. Do not confuse that older DLL with this build.
 
