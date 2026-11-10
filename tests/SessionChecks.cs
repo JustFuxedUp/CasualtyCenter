@@ -48,13 +48,33 @@ static class SessionChecks
         check(!s.Extract(), "Scene change invalidates session");
         s = NewSession(); MultiplayerApi.IsRunning = true;
         check(!s.Extract() && !s.Slip(), "Multiplayer blocks treatment and damage");
-        s = NewSession(); MinigameBase.main = new MinigameBase { currentMinigame = new object() };
+        s = NewSession(); MinigameBase.main = new MinigameBase { currentMinigame = new Minigame() };
         check(!s.Extract(), "Native minigame excludes surgery");
         s = NewSession(); s.Limb.skinHealth = float.NaN;
         check(!s.Extract(), "Nonfinite wound state rejected by adapter");
         s = NewSession();
         check(s.Slip() && s.Limb.skinHealth == 49 && System.Math.Abs(s.Limb.bleedAmount - 4.2f) < 0.001f
             && s.Limb.shrapnel == 2, "Slip damages wound without removing fragment");
+        s = NewSession();
+        var owner = new Minigame();
+        var owned = new OperationSession(s.Patient, s.Limb, 5, 1, owner);
+        check(!owned.Extract(), "Native operation cannot act before host assigns ownership");
+        MinigameBase.main = new MinigameBase { currentMinigame = owner };
+        check(OperationSession.Ineligible(s.Patient, s.Limb) != null, "New surgery cannot start while native operation runs");
+        check(owned.Extract(), "Native operation accepts its own minigame slot");
+        MinigameBase.main.currentMinigame = new Minigame();
+        check(!owned.Stitch(out _) && !owned.Slip(), "Replacing the native minigame revokes treatment authority");
+        MinigameBase.main.currentMinigame = null;
+        check(!owned.Stitch(out _) && s.Limb.shrapnel == 2, "Closing native host cannot grant a reward");
+        s = NewSession(); owner = new Minigame();
+        owned = new OperationSession(s.Patient, s.Limb, 5, 1, owner);
+        MinigameBase.main = new MinigameBase { currentMinigame = owner };
+        owned.Extract(); owned.Stitch(out _); owned.Stitch(out _);
+        check(owned.Stitch(out var nativeComplete) && nativeComplete && s.Limb.shrapnel == 1,
+            "Owned native operation can complete treatment");
+        owned.Cancel();
+        check(!owned.Stitch(out _) && s.Limb.shrapnel == 1 && s.Limb.skinHealth == 55,
+            "Native exit cleanup preserves exactly one completed reward");
         s = NewSession(); s.Limb.skinHealth = 0; s.Limb.bleedAmount = 100;
         check(s.Slip() && s.Limb.skinHealth == 0 && s.Limb.bleedAmount == 100, "Slip respects wound boundaries");
     }

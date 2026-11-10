@@ -11,18 +11,20 @@ namespace CasualtiesSurgery.Game
         public readonly Body Patient;
         public readonly Limb Limb;
         public readonly FragmentProcedure Procedure = new FragmentProcedure();
+        readonly Minigame owner;
         readonly int fragmentsAtStart;
         readonly Vector3 origin;
         readonly int scene;
         readonly float skinRecovery, bleedingReduction;
         public int Stitches { get; private set; }
-        public OperationSession(Body patient, Limb limb, float skinRecovery, float bleedingReduction)
+        public OperationSession(Body patient, Limb limb, float skinRecovery, float bleedingReduction, Minigame owner = null)
         {
+            this.owner = owner;
             Patient = patient; Limb = limb; fragmentsAtStart = limb.shrapnel;
             origin = patient.transform.position; scene = patient.gameObject.scene.handle;
             this.skinRecovery = skinRecovery; this.bleedingReduction = bleedingReduction;
         }
-        public static string Ineligible(Body patient, Limb limb)
+        public static string Ineligible(Body patient, Limb limb, Minigame allowedMinigame = null)
         {
             if (MultiplayerApi.IsRunning) return "Surgery MVP is singleplayer only.";
             if (patient == null || PlayerCamera.main == null || PlayerCamera.main.body != patient)
@@ -36,13 +38,16 @@ namespace CasualtiesSurgery.Game
             if (float.IsNaN(limb.skinHealth) || float.IsInfinity(limb.skinHealth) || limb.skinHealth < 0 || limb.skinHealth > 100 ||
                 float.IsNaN(limb.bleedAmount) || float.IsInfinity(limb.bleedAmount) || limb.bleedAmount < 0)
                 return "Invalid wound values; treatment stopped.";
-            if (MinigameBase.main != null && MinigameBase.main.currentMinigame != null)
+            if (MinigameBase.main != null && MinigameBase.main.currentMinigame != null &&
+                !ReferenceEquals(MinigameBase.main.currentMinigame, allowedMinigame))
                 return "Finish the current game minigame first.";
             return null;
         }
         public string InvalidReason()
         {
-            string reason = Ineligible(Patient, Limb);
+            if (owner != null && (MinigameBase.main == null || !ReferenceEquals(MinigameBase.main.currentMinigame, owner)))
+                return "This operation no longer owns the native minigame.";
+            string reason = Ineligible(Patient, Limb, owner);
             if (reason != null) return reason;
             if (Patient.gameObject.scene.handle != scene || Vector3.Distance(Patient.transform.position, origin) > 1.5f)
                 return "Patient moved too far or changed scene.";

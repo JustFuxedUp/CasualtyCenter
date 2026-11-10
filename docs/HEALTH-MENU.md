@@ -1,5 +1,8 @@
 # 0.4.0: surgery from the health dummy
 
+User verified this menu in-game. In 0.5.0, the same menu launches the
+[native minigame](NATIVE-MINIGAME.md); its controls supersede the F8/debug notes below.
+
 ## Player flow
 
 1. Open the normal health screen.

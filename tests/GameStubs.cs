@@ -35,4 +35,5 @@ public class Limb
     public ProstheticInfo prostheticInfo;
 }
 public class PlayerCamera { public static PlayerCamera main; public Body body; }
-public class MinigameBase { public static MinigameBase main; public object currentMinigame; }
+public class Minigame { }
+public class MinigameBase { public static MinigameBase main; public Minigame currentMinigame; }
