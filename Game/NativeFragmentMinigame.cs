@@ -144,7 +144,7 @@ namespace CasualtiesSurgery.Game
             bool drawing = extraction ? gesture.Active : suture.Active;
             if (drawing && (host.handClicking || host.handStoppedClicking))
             {
-                
+
                 if (host.handStoppedClicking)
                 {
                     if (extraction)
