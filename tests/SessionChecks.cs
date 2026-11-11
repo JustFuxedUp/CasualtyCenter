@@ -83,6 +83,10 @@ static class SessionChecks
         check(!s.CompleteContinuousSuture(), "Continuous treatment cannot be repeated");
         s = NewSession(); s.Extract(); s.Cancel();
         check(!s.CompleteContinuousSuture() && s.Limb.shrapnel == 2, "Cancelled continuous suture grants no reward");
+        s=NewSession(); s.Extract();
+        check(s.Slip() && s.Limb.skinHealth==50 && s.Limb.bleedAmount==4 && s.Limb.shrapnel==2,
+            "Failed suture has no damage, bleeding, removal or reward");
+        check(s.CompleteContinuousSuture() && s.Limb.shrapnel==1, "Harmless suture retry can complete later");
         s = NewSession(); s.Limb.skinHealth = 0; s.Limb.bleedAmount = 100;
         check(s.Slip() && s.Limb.skinHealth == 0 && s.Limb.bleedAmount == 100, "Slip respects wound boundaries");
     }

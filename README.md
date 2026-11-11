@@ -2,21 +2,23 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.6.0 compact surgery and continuous suturing
+## Current build: 0.7.0 surgery grace and feedback
 
 Open the normal health screen, right-click a limb on the dummy, and select
 **Extract fragment + suture**. The game's native minigame screen and hand open.
 On an attached organic limb with fragments, use forceps to pull a fragment along its marked path, then use
 the suture tool to draw one continuous zigzag across the wound. Hold right mouse
-for the cursor-centered tool wheel. The screen and hand default to 40% scale. Completion removes one fragment,
+for the cursor-centered tool wheel. The window stays full size; wound assets and hand default to 40% scale.
+Right-click outside to exit. Failed sutures have no cost. Completion removes one fragment,
 restores 5 skin points and reduces bleeding by 1 using the latest wound values.
-Healing amounts are configurable. Slips cost 1 skin and add up to 0.2 bleeding.
+Healing amounts are configurable. Extraction slips cost 1 skin and add up to 0.2 bleeding; failed sutures are harmless.
 
 This playtest uses free tools: crafting, supplies and multiplayer surgery are
 not implemented. The world keeps running while the panel is open. The native minigame handles procedure input and exits; the health context menu
 blocks background player input while it is open.
 
-- [Current controls, scoring and playtest](docs/COMPACT-SURGERY.md)
+- [Current changes, controls and playtest](docs/SURGERY-GRACE.md)
+- [Previous controls, scoring and playtest](docs/COMPACT-SURGERY.md)
 - [Body-section design note](docs/BODY-SECTIONS-DESIGN.md)
 - [Native minigame controls, review and playtest](docs/NATIVE-MINIGAME.md)
 - [Surgery kit concept (design only)](docs/SURGERY-KIT-DESIGN.md)

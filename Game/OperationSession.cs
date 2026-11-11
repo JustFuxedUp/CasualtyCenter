@@ -76,6 +76,8 @@ namespace CasualtiesSurgery.Game
         public bool Slip()
         {
             if (InvalidReason() != null || Procedure.Stage == FragmentStage.Completed || Procedure.Stage == FragmentStage.Cancelled) return false;
+            // Suturing currently has no failure cost; future tools may consume resources instead.
+            if (Procedure.Stage == FragmentStage.Suture) return true;
             Limb.skinHealth = Mathf.Max(0, Limb.skinHealth - 1f);
             Limb.bleedAmount = Mathf.Min(100 - Limb.skinHealth, Limb.bleedAmount + 0.2f);
             return true;

@@ -59,6 +59,7 @@ static class Program
         Check(drag.Begin(0.28f, 0.3f) && drag.Move(0.5f, 0.3f) && drag.End(0.72f, 0.3f), "Horizontal stitch gesture");
         SessionChecks.Run(Check);
         SutureChecks.Run(Check);
+        GraceChecks.Run(Check);
         Console.WriteLine(checks + " procedure, gesture and session checks passed.");
     }
 }

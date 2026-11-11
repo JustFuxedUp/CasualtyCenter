@@ -5,6 +5,11 @@ namespace CasualtiesSurgery.Procedures
     // Wound coordinates: x crosses its width (-1..1); y progresses along it (0..1).
     public sealed class SutureStroke
     {
+        readonly float grace;
+        public event Action<float,float> TurnCommitted;
+        public SutureStroke(float grace = 1f) { this.grace = grace; }
+        float SideThreshold => Math.Max(0.2f, 1f - 0.35f*grace);
+        float WidthLimit => 1f + 0.6f*grace;
         readonly List<float> gaps = new List<float>();
         readonly List<float> angles = new List<float>();
         float previousX, previousY, lastTurnX, lastTurnY, distance, direct, furthest;
@@ -16,22 +21,22 @@ namespace CasualtiesSurgery.Procedures
         public bool Begin(float x, float y)
         {
             Reset();
-            if (!Finite(x) || !Finite(y) || x > -0.65f || x < -1.6f || y < -0.12f || y > 0.12f) return false;
+            if (!Finite(x) || !Finite(y) || x > -SideThreshold || x < -WidthLimit || y < -0.12f*grace || y > 0.12f*grace) return false;
             previousX = lastTurnX = x; previousY = lastTurnY = furthest = y;
             side = -1; Active = true; return true;
         }
         public bool Move(float x, float y)
         {
             if (!Active) return false;
-            if (!Finite(x) || !Finite(y) || Math.Abs(x) > 1.6f || y < -0.12f || y > 1.12f || y < furthest - 0.12f)
+            if (!Finite(x) || !Finite(y) || Math.Abs(x) > WidthLimit || y < -0.12f*grace || y > 1f+0.12f*grace || y < furthest - 0.12f*grace)
             { Active = false; return false; }
             distance += Distance(previousX, previousY, x, y);
             previousX = x; previousY = y; furthest = Math.Max(furthest, y);
             // Commit a turn at its outermost point, not at the first sample that
             // crosses a threshold. This keeps scoring stable across frame rates.
-            if (reachedSide && ((side < 0 && x < peakX - 0.08f) || (side > 0 && x > peakX + 0.08f)))
+            if (reachedSide && ((side < 0 && x < peakX - 0.08f*grace) || (side > 0 && x > peakX + 0.08f*grace)))
                 if (!CommitTurn()) return false;
-            if ((side < 0 && x >= 0.65f) || (side > 0 && x <= -0.65f))
+            if ((side < 0 && x >= SideThreshold) || (side > 0 && x <= -SideThreshold))
             {
                 if (!reachedSide || (side < 0 ? x >= peakX : x <= peakX)) { peakX = x; peakY = y; }
                 reachedSide = true;
@@ -44,7 +49,7 @@ namespace CasualtiesSurgery.Procedures
             bool valid = Move(x, y);
             if (valid && reachedSide) valid = CommitTurn();
             Active = false;
-            if (!valid || gaps.Count < 4 || y < 0.9f || Math.Abs(x) < 0.65f || lastTurnY < 0.8f) return false;
+            if (!valid || gaps.Count < 4 || y < 1f-0.1f*grace || Math.Abs(x) < SideThreshold || lastTurnY < 1f-0.1f*grace) return false;
             float efficiency = Math.Min(1, direct / Math.Max(distance, 0.0001f));
             float mean = 0; foreach (float gap in gaps) mean += gap; mean /= gaps.Count;
             float variance = 0; foreach (float gap in gaps) variance += (gap - mean) * (gap - mean);
@@ -59,11 +64,12 @@ namespace CasualtiesSurgery.Procedures
         bool CommitTurn()
         {
             float progress = peakY - lastTurnY;
-            if (progress < 0.045f || gaps.Count >= 10) { Active = false; return false; }
+            if (progress < 0.045f/grace || gaps.Count >= 10) { Active = false; return false; }
             gaps.Add(progress);
             angles.Add((float)Math.Atan2(Math.Abs(peakX-lastTurnX)*0.15f, progress));
             direct += Distance(lastTurnX, lastTurnY, peakX, peakY);
             lastTurnX = peakX; lastTurnY = peakY; side = -side; reachedSide = false;
+            TurnCommitted?.Invoke(peakX,peakY);
             return true;
         }
         public void Reset() { Active = false; reachedSide = false; gaps.Clear(); angles.Clear(); distance = direct = 0; }

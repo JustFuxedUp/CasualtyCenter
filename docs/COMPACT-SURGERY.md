@@ -1,5 +1,8 @@
 # 0.6.0: compact surgery, radial tools and continuous suturing
 
+In 0.7.0 the window returns to full size, grace is doubled, and failed sutures
+are harmless. See [current changes](SURGERY-GRACE.md); conflicting notes below are historical.
+
 ## Controls
 
 Start through the same health-dummy menu. Hold right mouse to open the tool wheel
