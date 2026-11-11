@@ -7,6 +7,8 @@ namespace CasualtiesSurgery.Procedures
     {
         public int Id;
         public bool Extracted, Completed;
+        public float GelMl;
+        public int ExtractionScore=100;
     }
     public sealed class FragmentBoard
     {
@@ -19,7 +21,7 @@ namespace CasualtiesSurgery.Procedures
         public void Validate()
         {
             if (LayoutVersion<0 || LayoutVersion>2 || Sites==null || Sites.Count>10000 || NextId<0 || NextId>10000 ||
-                Sites.Any(s=>s==null || s.Id<0 || s.Id>=NextId) || Sites.Select(s=>s.Id).Distinct().Count()!=Sites.Count)
+                Sites.Any(s=>s==null || s.Id<0 || s.Id>=NextId || float.IsNaN(s.GelMl) || float.IsInfinity(s.GelMl) || s.GelMl<0 || s.GelMl>GelRules.FragmentMl+.001f || s.ExtractionScore<0 || s.ExtractionScore>100) || Sites.Select(s=>s.Id).Distinct().Count()!=Sites.Count)
                 throw new ArgumentException("Invalid saved surgery board.");
         }
         public void Reconcile(int count)

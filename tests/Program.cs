@@ -64,6 +64,7 @@ static class Program
         FlowChecks.Run(Check);
         FeedbackChecks.Run(Check);
         FractureChecks.Run(Check);
+        GelChecks.Run(Check);
         Console.WriteLine(checks + " procedure, gesture and session checks passed.");
     }
 }

@@ -73,6 +73,13 @@ namespace CasualtiesSurgery.Game
             Limb.shrapnel = outcome.Fragments; Limb.skinHealth = outcome.SkinHealth; Limb.bleedAmount = outcome.Bleeding;
             return true;
         }
+        public bool CompleteGelClosure(FragmentSite site)
+        {
+            if(site==null || !site.Extracted || site.Completed || site.GelMl<GelRules.FragmentMl)return false;
+            var board=FragmentBoardStore.Get(Limb);
+            if(!board.Sites.Contains(site) || !CompleteContinuousSuture())return false;
+            return board.Complete(site.Id);
+        }
         public bool Slip()
         {
             if (InvalidReason() != null || Procedure.Stage == FragmentStage.Completed || Procedure.Stage == FragmentStage.Cancelled) return false;

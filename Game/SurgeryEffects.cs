@@ -1,0 +1,72 @@
+using System.Collections.Generic;
+using CasualtiesSurgery.Procedures;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+namespace CasualtiesSurgery.Game
+{
+    internal static class SurgeryContact
+    {
+        public static Vector3 Point(MinigameBase host,SurgeryTool tool)
+        {
+            if(tool!=SurgeryTool.Scalpel)return host.handTransform.position;
+            var rect=host.handTransform.rect;
+            var image=host.handTransform.GetComponent<Image>();
+            if(image!=null && image.preserveAspect && image.sprite!=null)
+            {
+                float ratio=image.sprite.rect.width/image.sprite.rect.height;
+                if(rect.width/rect.height>ratio){float width=rect.height*ratio;rect.x+=(rect.width-width)*host.handTransform.pivot.x;rect.width=width;}
+                else {float height=rect.width/ratio;rect.y+=(rect.height-height)*host.handTransform.pivot.y;rect.height=height;}
+            }
+            // Inspected handSharp/handSharpalt (256 x 630): visible blade tip at x~60, top edge.
+            return host.handTransform.TransformPoint(new Vector3(rect.xMin+rect.width*(60f/256),rect.yMax-rect.height*.005f,0));
+        }
+    }
+    internal sealed class SurgeryEffects
+    {
+        sealed class Mark {public Image Image;public float Age,Life,Alpha;}
+        readonly List<Mark> marks=new List<Mark>();
+        readonly RectTransform layer,root;readonly TextMeshProUGUI counter;
+        Vector2 previous;bool tracing;SurgeryTool previousTool;float gelTick;
+        public float SutureCm {get;private set;} public float GelMl {get;private set;}
+        public SurgeryEffects(RectTransform root,TMP_FontAsset font,RectTransform field)
+        {
+            this.root=root;
+            layer=new GameObject("TransientToolTrail",typeof(RectTransform)).GetComponent<RectTransform>();layer.SetParent(field,false);
+            var go=new GameObject("UsageDebug",typeof(RectTransform),typeof(TextMeshProUGUI));var r=(RectTransform)go.transform;r.SetParent(root,false);r.anchoredPosition=new Vector2(0,-430);r.sizeDelta=new Vector2(940,34);
+            counter=go.GetComponent<TextMeshProUGUI>();counter.font=font;counter.fontSize=18;counter.color=new Color(.7f,.85f,.9f);counter.alignment=TextAlignmentOptions.Center;counter.raycastTarget=false;
+            UpdateCounter();
+        }
+        public void Detach(){layer.SetParent(root,false);Stop();foreach(var m in marks)if(m.Image!=null)Object.Destroy(m.Image.gameObject);marks.Clear();}
+        public void Bind(RectTransform field){layer.SetParent(field,false);layer.localPosition=Vector3.zero;}
+        public void Tick()
+        {
+            for(int i=marks.Count-1;i>=0;i--){var m=marks[i];m.Age+=Time.unscaledDeltaTime;if(m.Image==null||m.Age>=m.Life){if(m.Image!=null)Object.Destroy(m.Image.gameObject);marks.RemoveAt(i);continue;}var c=m.Image.color;c.a=m.Alpha*(1-m.Age/m.Life);m.Image.color=c;}
+        }
+        public void Stop(){tracing=false;gelTick=0;}
+        public float Draw(SurgeryTool tool,bool held,Vector3 world,float dt)
+        {
+            if(!held || dt<=0){Stop();return 0;}
+            Vector2 p=layer.InverseTransformPoint(world);float dispensed=0;
+            if(tracing && previousTool==tool && (tool==SurgeryTool.Suture||tool==SurgeryTool.Scalpel))
+            {
+                Vector2 d=p-previous;
+                if(tool==SurgeryTool.Suture)SutureCm+=d.magnitude/100;
+                if(d.sqrMagnitude>1){var line=MarkAt((p+previous)*.5f,new Vector2(d.magnitude,1.4f),new Color(.85f,.08f,.12f,.22f),.35f);line.localEulerAngles=new Vector3(0,0,Mathf.Atan2(d.y,d.x)*Mathf.Rad2Deg);}
+            }
+            if(tool==SurgeryTool.Gel)
+            {
+                dispensed=GelRules.FlowMlPerSecond*dt;GelMl+=dispensed;gelTick+=dt;
+                if(gelTick>=.04f){gelTick=0;float size=Random.Range(9f,17f);MarkAt(p+Random.insideUnitCircle*7,Vector2.one*size,new Color(.25f,.9f,.65f,.13f),.8f);}
+            }
+            previous=p;previousTool=tool;tracing=true;UpdateCounter();return dispensed;
+        }
+        RectTransform MarkAt(Vector2 p,Vector2 size,Color color,float life)
+        {
+            if(marks.Count>=160){Object.Destroy(marks[0].Image.gameObject);marks.RemoveAt(0);}
+            var go=new GameObject("ToolTrace",typeof(RectTransform),typeof(Image));var r=(RectTransform)go.transform;r.SetParent(layer,false);r.anchoredPosition=p;r.sizeDelta=size;
+            var im=go.GetComponent<Image>();im.color=color;im.raycastTarget=false;marks.Add(new Mark{Image=im,Life=life,Alpha=color.a});return r;
+        }
+        void UpdateCounter(){counter.text="DEBUG / this session   Suture: "+SutureCm.ToString("0.00")+" cm   Gel: "+GelMl.ToString("0.0")+" mL";}
+    }
+}

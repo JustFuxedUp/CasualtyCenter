@@ -2,7 +2,14 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.11.1 surgery refinements
+## Current build: 0.12.0 gel and tool trails
+
+Gel is the fourth radial tool: use 2 mL on an extracted fragment wound to close it,
+or coat fracture-incision sections to disinfect them. Coverage and partial doses
+persist. Surgery infection risk scales with preparation, immunity and accuracy.
+Thin red tool trails and session-only suture/gel usage counters aid testing.
+See [gel controls, balance, persistence and playtest](docs/GEL-AND-TRAILS.md).
+
 
 See [current controls and refinement playtest](docs/SURGERY-REFINEMENTS.md).
 

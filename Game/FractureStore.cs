@@ -39,6 +39,7 @@ namespace CasualtiesSurgery.Game
         {
             if(quality<0 || quality>100 || Ineligible(limb.body,limb,owner)!=null)return false;
             var s=Get(limb);if(s.Stage!=FractureStage.Closure)return false;
+            SurgeryInfection.Apply(limb,s.Coverage,s.OverallQuality(quality));
             limb.skinHealth=Mathf.Min(100,limb.skinHealth+s.Close(quality));
             if(limb.broken && Array.TrueForAll(s.Aligned,a=>a))limb.boneHealTimer=FractureState.ReducedTimer(limb.boneHealTimer);
             return true;
@@ -61,7 +62,17 @@ namespace CasualtiesSurgery.Game
         static void Prefix(Limb __instance,out bool __state){__state=__instance.broken;}
         static void Postfix(Limb __instance,bool __state){if(!__state && __instance.broken)FractureStore.NewBreak(__instance);}
     }
-    internal enum SurgeryTool { Forceps,Suture,Scalpel }
+    internal static class SurgeryInfection
+    {
+        public static void Apply(Limb limb,float coverage,float quality)
+        {
+            float risk=GelRules.InfectionRisk(coverage,limb.body.immunity,quality,limb.body.infectionChanceMultiplier*WorldGeneration.GetRunSettingFloat("infectionchance"));
+            if(risk<=0 || UnityEngine.Random.value>=risk)return;
+            limb.infected=true;
+            limb.infectionAmount=Mathf.Min(100,Mathf.Max(0,limb.infectionAmount)+1+4*(1-Mathf.Min(100,Mathf.Max(0,quality))/100));
+        }
+    }
+    internal enum SurgeryTool { Forceps,Suture,Scalpel,Gel }
     internal interface ISurgery
     {
         bool Ended {get;} bool BlocksToolInput {get;} float HandScale {get;}

@@ -59,6 +59,7 @@ namespace CasualtiesSurgery.Game
         bool readyForPress;
         readonly ScalpelTrace scalpel=new ScalpelTrace();
         float nextScalpelMistake;
+        SurgeryEffects effects;
         string message = "Use the native hand: grip SHARD, follow the path, release at END.";
         public bool Ended { get; private set; }
 
@@ -71,7 +72,7 @@ namespace CasualtiesSurgery.Game
             board=FragmentBoardStore.Get(limb);
         }
         public float HandScale => handScale;
-        public override HandSpriteType HandType() => Plugin.SelectedTool==SurgeryTool.Scalpel?HandSpriteType.Blade:forceps ? HandSpriteType.Tweezers : HandSpriteType.Point;
+        public override HandSpriteType HandType() => Plugin.SelectedTool==SurgeryTool.Gel?HandSpriteType.Grasp:Plugin.SelectedTool==SurgeryTool.Scalpel?HandSpriteType.Blade:forceps ? HandSpriteType.Tweezers : HandSpriteType.Point;
         // The host looks up this existing key once at startup; RefreshGuide then supplies our stage instructions.
         public override string GuideLocaleString() => "shrapnelMinigameGuide";
         public override bool NeedsItem() => false;
@@ -107,9 +108,11 @@ namespace CasualtiesSurgery.Game
             wheel.SetParent(root, false); wheel.localScale=Vector3.one*viewScale; wheel.sizeDelta = new Vector2(380, 380);
             wheelGraphic = wheel.GetComponent<ToolWheelGraphic>(); wheelGraphic.raycastTarget = false;
             Text("Forceps", wheel, new Vector2(118, 0), new Vector2(145, 90), 30).text = "Forceps";
-            Text("Suture", wheel, new Vector2(-60, 104), new Vector2(145, 90), 30).text = "Suture";
-            Text("Scalpel",wheel,new Vector2(-60,-104),new Vector2(145,90),30).text="Scalpel";
+            Text("Suture", wheel, new Vector2(0,118), new Vector2(145, 90), 30).text = "Suture";
+            Text("Scalpel",wheel,new Vector2(-118,0),new Vector2(145,90),30).text="Scalpel";
+            Text("Gel",wheel,new Vector2(0,-118),new Vector2(145,90),30).text="Gel";
             wheel.gameObject.SetActive(false);
+            effects=new SurgeryEffects(root,host.guideText.font,field);
             SelectFirst(); RefreshGuide();
         }
 
@@ -171,6 +174,7 @@ namespace CasualtiesSurgery.Game
                 if(v.Wound==null) continue;
                 v.Wound.gameObject.SetActive(visible);
                 v.Fragment.gameObject.SetActive(!v.Site.Extracted);
+                v.Wound.GetComponent<Image>().color=Color.Lerp(new Color(.48f,.09f,.12f),new Color(.25f,.8f,.7f),v.Site.GelMl/GelRules.FragmentMl);
             }
             if(strokeRoot!=null)strokeRoot.SetAsLastSibling();
         }
@@ -227,20 +231,23 @@ namespace CasualtiesSurgery.Game
         public override void Update(List<RaycastResult> hits)
         {
             if (Ended) return;
-            UpdateFades();
+            effects.Tick();UpdateFades();
             string invalid = InvalidReason();
             if (invalid != null) { Finish(invalid); return; }
             if (!wheelOpen && Input.GetMouseButtonDown(1) && !PointerInsideWindow())
             { Finish("Surgery closed by right-click outside the window."); return; }
             if (BlocksToolInput && Input.GetKeyDown(KeyBinds.GetBind("pause"))) { Finish("Surgery cancelled."); return; }
-            if (HandleWheel()) { Plugin.Feedback?.Cutting(this,false);RefreshGuide(); return; }
+            if (HandleWheel()) { effects.Stop();Plugin.Feedback?.Cutting(this,false);RefreshGuide(); return; }
             if(ChangeSite()) { RefreshGuide(); return; }
             if (!readyForPress)
             {
-                Plugin.Feedback?.Cutting(this,false);
+                effects.Stop();Plugin.Feedback?.Cutting(this,false);
                 if (!host.handClicking) readyForPress = true;
                 RefreshGuide(); return;
             }
+            Vector3 contact=SurgeryContact.Point(host,Plugin.SelectedTool);
+            float gel=effects.Draw(Plugin.SelectedTool,host.handClicking,contact,Time.deltaTime);
+            if(Plugin.SelectedTool==SurgeryTool.Gel){Plugin.Feedback?.Cutting(this,false);scalpel.Reset();if(gel>0)ApplyGel(contact,gel);RefreshGuide();return;}
             Plugin.Feedback?.Cutting(this,Plugin.SelectedTool==SurgeryTool.Scalpel && host.handClicking && Time.timeScale>0);
             if(Plugin.SelectedTool==SurgeryTool.Scalpel)
             {
@@ -276,7 +283,7 @@ namespace CasualtiesSurgery.Game
                     {
                         if (!gesture.End(x, y)) Slip();
                         else if (!session.Extract()) { Finish("Wound changed; treatment cancelled."); return; }
-                        else { int score=gesture.Quality; FadeShard(); selectedSite.Extracted=true; RefreshSites(); PrepareGesture(); ShowResult(score); }
+                        else { int score=gesture.Quality; FadeShard(); selectedSite.Extracted=true;selectedSite.ExtractionScore=score; RefreshSites(); PrepareGesture(); ShowResult(score); }
                     }
                     else if (!suture.End(x, y, out int quality)) Slip();
                     else if (!session.CompleteContinuousSuture()) { Finish("Wound changed; treatment cancelled."); return; }
@@ -317,7 +324,7 @@ namespace CasualtiesSurgery.Game
             }
             if (!wheelOpen) return false;
             Vector2 delta = (Vector2)Input.mousePosition - wheelScreenOrigin;
-            int selected = ToolWheelGraphic.Pick(delta,3);
+            int selected = ToolWheelGraphic.Pick(delta,4);
             wheelGraphic.Selected = selected; wheelGraphic.SetVerticesDirty();
             if (Input.GetKeyUp(wheelKey))
             {
@@ -332,6 +339,27 @@ namespace CasualtiesSurgery.Game
             var canvas = root.GetComponentInParent<Canvas>();
             return RectTransformUtility.RectangleContainsScreenPoint(windowBounds, Input.mousePosition,
                 canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera);
+        }
+        void ApplyGel(Vector3 world,float ml)
+        {
+            SiteView target=null;float best=22*22;
+            foreach(var view in sites)
+            {
+                if(view.Site.Completed || !view.Site.Extracted || view.Layout.Page!=page)continue;
+                EnsureView(view);var local=view.Wound.InverseTransformPoint(world);
+                float y=Mathf.Clamp(local.y,-view.Layout.Length/2,view.Layout.Length/2);
+                float distance=(view.Wound.TransformPoint(new Vector3(0,y,0))-world).sqrMagnitude;
+                // Compare in board units, independent of the screen's UI scale.
+                Vector3 a=field.InverseTransformPoint(world),b=field.InverseTransformPoint(view.Wound.TransformPoint(new Vector3(0,y,0)));distance=(a-b).sqrMagnitude;
+                if(distance<best){best=distance;target=view;}
+            }
+            if(target==null)return;
+            target.Site.GelMl=GelRules.Deposit(target.Site.GelMl,ml,GelRules.FragmentMl);patientLimb.SetDisinfect(30);
+            target.Wound.GetComponent<Image>().color=Color.Lerp(new Color(.48f,.09f,.12f),new Color(.25f,.8f,.7f),target.Site.GelMl/GelRules.FragmentMl);
+            if(target.Site.GelMl<GelRules.FragmentMl)return;
+            SelectSite(target);
+            if(!session.CompleteGelClosure(target.Site)){Finish("Wound changed before gel closure.");return;}
+            ShowResult(100);log("Gel closed site "+target.Site.Id+" on "+patientLimb.fullName);RefreshSites();SelectFirst();
         }
         void HandleSutures()
         {
@@ -373,6 +401,7 @@ namespace CasualtiesSurgery.Game
                 if(completed==null)return;
                 SelectSite(completed);
                 if(!session.CompleteContinuousSuture() || !board.Complete(completed.Site.Id)){Finish("Wound changed before suture completion.");return;}
+                SurgeryInfection.Apply(patientLimb,completed.Site.GelMl/GelRules.FragmentMl,(completed.Site.ExtractionScore+quality)*.5f);
                 ShowResult(quality);log("Treated site "+completed.Site.Id+" on board "+board.Seed+"; "+board.Remaining+" remaining.");
                 RefreshSites();SelectFirst();return;
             }
@@ -471,7 +500,7 @@ namespace CasualtiesSurgery.Game
             if (Ended || heading == null) return;
             bool extraction = session.Procedure.Stage == FragmentStage.Extraction;
             heading.text = patientLimb.fullName+" / "+board.Remaining+" wounds"+ (board.NextId>12 ? " / page "+(page+1)+" (PgUp/PgDn)" : "");
-            host.guideText.text = "Hold " + wheelKey + " inside for tools. Right-click outside to exit. " + (Plugin.SelectedTool==SurgeryTool.Scalpel ? "No cutting objectives here; scalpel use damages tissue." : forceps ? "Pull until loose, then release." : "Cross the wound three times, then release.");
+            host.guideText.text = "Hold " + wheelKey + " inside for tools. Right-click outside to exit. " + (Plugin.SelectedTool==SurgeryTool.Gel ? "Gel: hold over an extracted wound to close it (2 mL)." : Plugin.SelectedTool==SurgeryTool.Scalpel ? "No cutting objectives here; scalpel use damages tissue." : forceps ? "Pull until loose, then release." : "Cross the wound three times, then release.");
         }
         public void Finish(string reason)
         {

@@ -21,6 +21,7 @@ namespace CUCoreLib.Networking { public static class MultiplayerApi { public sta
 public class Body
 {
     public bool alive = true, conscious = true;
+    public float immunity=100,infectionChanceMultiplier=1;
     public Limb[] limbs;
     public UnityEngine.Transform transform = new UnityEngine.Transform();
     public UnityEngine.GameObject gameObject = new UnityEngine.GameObject();
@@ -31,7 +32,9 @@ public class Limb
     public Body body;
     public int shrapnel;
     public float skinHealth, bleedAmount;
-    public bool dismembered, broken;
+    public bool dismembered, broken,infected;
+    public float infectionAmount,disinfectionTime;
+    public void SetDisinfect(float seconds){disinfectionTime=System.Math.Max(disinfectionTime,seconds);}
     public float boneHealTimer,pain,muscleHealth=100;
     public void BreakBone(){broken=true;boneHealTimer=100;}
     public ProstheticInfo prostheticInfo;
@@ -60,3 +63,6 @@ namespace HarmonyLib
 {
     public sealed class HarmonyPatch : System.Attribute {public HarmonyPatch(System.Type type,string name){}}
 }
+
+namespace UnityEngine { public static class Random {public static float value=.99f;} }
+public static class WorldGeneration {public static float InfectionChance=1;public static float GetRunSettingFloat(string name)=>InfectionChance;}

@@ -15,7 +15,8 @@ namespace CasualtiesSurgery.Game
         readonly Vector3 origin;readonly int scene;
         readonly ScalpelTrace scalpel=new ScalpelTrace();readonly SutureStroke suture=new SutureStroke(2);
         RectTransform root,field,wheel,trace,preview;ToolWheelGraphic wheelGraphic;TextMeshProUGUI heading;
-        readonly List<Image> dots=new List<Image>();readonly List<RectTransform> bones=new List<RectTransform>();
+        readonly List<Image> dots=new List<Image>(),prep=new List<Image>();
+        SurgeryEffects effects;readonly List<RectTransform> bones=new List<RectTransform>();
         WristFade fade;Vector3 originalScale;Vector2 wheelOrigin,frozen,lastThread;
         bool wheelOpen,ready;int rotating=-1;float startPointer,startAngle,mistakeSound;FractureStage displayed;
         public bool Ended {get;private set;} public float HandScale=>handScale;
@@ -23,7 +24,7 @@ namespace CasualtiesSurgery.Game
         SurgeryTool Tool=>Plugin.SelectedTool;
         public NativeFractureMinigame(MinigameBase host,WoundView source,Limb limb,float handScale,KeyCode wheelKey,Action<string> log)
         {this.host=host;this.source=source;this.limb=limb;this.handScale=handScale;this.wheelKey=wheelKey;this.log=log;body=source.body;state=FractureStore.Get(limb);origin=body.transform.position;scene=body.gameObject.scene.handle;}
-        public override HandSpriteType HandType()=>Tool==SurgeryTool.Scalpel?HandSpriteType.Blade:Tool==SurgeryTool.Forceps?HandSpriteType.Tweezers:HandSpriteType.Point;
+        public override HandSpriteType HandType()=>Tool==SurgeryTool.Gel?HandSpriteType.Grasp:Tool==SurgeryTool.Scalpel?HandSpriteType.Blade:Tool==SurgeryTool.Forceps?HandSpriteType.Tweezers:HandSpriteType.Point;
         public override string GuideLocaleString()=>"shrapnelMinigameGuide";
         public override bool NeedsItem()=>false;
         public override void Start()
@@ -33,13 +34,14 @@ namespace CasualtiesSurgery.Game
             root.SetSiblingIndex(0);host.spawnedMiniGame=root;
             heading=Text(root,new Vector2(0,440),new Vector2(940,80),24);
             wheel=new GameObject("Tools",typeof(RectTransform),typeof(ToolWheelGraphic)).GetComponent<RectTransform>();wheel.SetParent(root,false);wheel.sizeDelta=new Vector2(380,380);wheel.localScale=Vector3.one*.4f;
-            wheelGraphic=wheel.GetComponent<ToolWheelGraphic>();wheelGraphic.ToolCount=3;
-            string[] names={"Forceps","Suture","Scalpel"};for(int i=0;i<3;i++){float a=i*Mathf.PI*2/3;Text(wheel,new Vector2(Mathf.Cos(a),Mathf.Sin(a))*120,new Vector2(145,70),25).text=names[i];}
-            wheel.gameObject.SetActive(false);suture.TurnCommitted+=ThreadTurn;BuildStage();RefreshGuide();
+            wheelGraphic=wheel.GetComponent<ToolWheelGraphic>();wheelGraphic.ToolCount=4;
+            string[] names={"Forceps","Suture","Scalpel","Gel"};for(int i=0;i<4;i++){float a=i*Mathf.PI*2/4;Text(wheel,new Vector2(Mathf.Cos(a),Mathf.Sin(a))*120,new Vector2(145,70),25).text=names[i];}
+            wheel.gameObject.SetActive(false);suture.TurnCommitted+=ThreadTurn;BuildStage();effects=new SurgeryEffects(root,host.guideText.font,field);trace.SetAsLastSibling();RefreshGuide();
         }
         void BuildStage()
         {
-            if(field!=null){field.gameObject.SetActive(false);UnityEngine.Object.Destroy(field.gameObject);}dots.Clear();bones.Clear();
+            effects?.Detach();
+            if(field!=null){field.gameObject.SetActive(false);UnityEngine.Object.Destroy(field.gameObject);}dots.Clear();bones.Clear();prep.Clear();
             field=Box("OperatingSection",root,new Vector2(0,5),new Vector2(900,700),new Color(.045f,.085f,.16f)).rectTransform;field.SetSiblingIndex(1);
             displayed=state.Stage;trace=new GameObject("Thread",typeof(RectTransform)).GetComponent<RectTransform>();trace.SetParent(field,false);
             if(displayed==FractureStage.Incision)
@@ -61,7 +63,11 @@ namespace CasualtiesSurgery.Game
                 }
             }
             else Box("ClosureWound",field,Vector2.zero,new Vector2(14,180),new Color(.48f,.09f,.12f));
-            trace.SetAsLastSibling();Plugin.Feedback?.Cutting(this,false);
+            for(int i=0;i<9;i++)
+            {
+                var band=Box("DisinfectedSection",field,new Vector2(0,120-i*30),new Vector2(10,26),Color.clear);prep.Add(band);
+            }
+            RefreshPrep();effects?.Bind(field);trace.SetAsLastSibling();Plugin.Feedback?.Cutting(this,false);
             ready=false;rotating=-1;suture.Reset();scalpel.Reset();host.ForceUngrab();
         }
         public string InvalidReason()
@@ -74,19 +80,33 @@ namespace CasualtiesSurgery.Game
         }
         public override void Update(List<RaycastResult> hits)
         {
-            if(Ended)return;string invalid=InvalidReason();if(invalid!=null){Finish(invalid);return;}
+            if(Ended)return;effects.Tick();string invalid=InvalidReason();if(invalid!=null){Finish(invalid);return;}
             if(state.Started && state.Stage==FractureStage.Incision)state.CutSeconds+=Time.deltaTime;
             if(!limb.broken && state.Started && state.Stage==FractureStage.Alignment){state.Stage=FractureStage.Closure;BuildStage();}
             if(!wheelOpen && Input.GetMouseButtonDown(1) && !Inside()){Finish("Surgery closed; incision saved.");return;}
             if(BlocksToolInput && Input.GetKeyDown(KeyBinds.GetBind("pause"))){Finish("Surgery cancelled.");return;}
-            if(Wheel()){Plugin.Feedback?.Cutting(this,false);RefreshGuide();return;}
-            if(!ready){Plugin.Feedback?.Cutting(this,false);if(!host.handClicking)ready=true;RefreshGuide();return;}
-            Vector3 p=field.InverseTransformPoint(host.handTransform.position);
+            if(Wheel()){effects.Stop();Plugin.Feedback?.Cutting(this,false);RefreshGuide();return;}
+            if(!ready){effects.Stop();Plugin.Feedback?.Cutting(this,false);if(!host.handClicking)ready=true;RefreshGuide();return;}
+            Vector3 contact=SurgeryContact.Point(host,Tool);
+            Vector3 p=field.InverseTransformPoint(contact);
+            float gel=effects.Draw(Tool,host.handClicking,contact,Time.deltaTime);
+            if(Tool==SurgeryTool.Gel && gel>0)ApplyGel(p,gel);
             Plugin.Feedback?.Cutting(this,Tool==SurgeryTool.Scalpel && host.handClicking && Time.timeScale>0);
             if(Tool==SurgeryTool.Scalpel)Cut(p);else scalpel.Reset();
             if(Tool==SurgeryTool.Forceps && state.Stage==FractureStage.Alignment)Rotate(p);
             if(Tool==SurgeryTool.Suture && state.Stage==FractureStage.Closure)Close(p);
             if(!Ended && state.Stage!=displayed)BuildStage();RefreshGuide();
+        }
+        void RefreshPrep()
+        {
+            for(int i=0;i<prep.Count;i++)prep[i].color=new Color(.25f,.85f,.75f,.55f*state.GelCoverage[i]/GelRules.SectionMl);
+        }
+        void ApplyGel(Vector2 point,float ml)
+        {
+            int closest=-1;float best=24*24;
+            for(int i=0;i<9;i++){float distance=(point-new Vector2(0,120-i*30)).sqrMagnitude;if(state.GelCoverage[i]<GelRules.SectionMl && distance<best){best=distance;closest=i;}}
+            if(closest<0)return;
+            if(state.Disinfect(closest,ml)){limb.SetDisinfect(60);RefreshPrep();}
         }
         void Cut(Vector2 p)
         {
@@ -159,7 +179,7 @@ namespace CasualtiesSurgery.Game
                 wheel.localPosition=point;wheel.SetAsLastSibling();wheel.gameObject.SetActive(true);
             }
             if(!wheelOpen)return false;
-            int selection=ToolWheelGraphic.Pick((Vector2)Input.mousePosition-wheelOrigin,3);wheelGraphic.Selected=selection;wheelGraphic.SetVerticesDirty();
+            int selection=ToolWheelGraphic.Pick((Vector2)Input.mousePosition-wheelOrigin,4);wheelGraphic.Selected=selection;wheelGraphic.SetVerticesDirty();
             if(Input.GetKeyUp(wheelKey)){if(selection>=0)Plugin.SelectedTool=(SurgeryTool)selection;wheelOpen=false;wheel.gameObject.SetActive(false);host.UpdateHandSprite(true);}
             return true;
         }
@@ -167,8 +187,8 @@ namespace CasualtiesSurgery.Game
         public void RefreshGuide()
         {
             if(Ended||heading==null)return;
-            heading.text=limb.fullName+" / "+state.Stage+" / "+Tool;
-            host.guideText.text="Hold right mouse: tools. Right-click outside: exit. "+(state.Stage==FractureStage.Incision?"Scalpel: touch all gold dots while cutting.":state.Stage==FractureStage.Alignment?"Forceps: grip near a bone end, rotate to the blue guide, release.":"Suture: cross the incision three times, then release.");
+            heading.text=limb.fullName+" / "+state.Stage+" / "+Tool+" / disinfected "+Mathf.RoundToInt(state.Coverage*100)+"%";
+            host.guideText.text="Hold right mouse: tools. Right-click outside: exit. "+(Tool==SurgeryTool.Gel?"Gel: coat the incision from end to end; blue-green marks show coverage.":state.Stage==FractureStage.Incision?"Scalpel: touch all gold dots while cutting.":state.Stage==FractureStage.Alignment?"Forceps: grip near a bone end, rotate to the blue guide, release.":"Suture: cross the incision three times, then release.");
         }
         public void Finish(string reason){if(Ended)return;log(reason);OnEnded();if(host!=null && ReferenceEquals(host.currentMinigame,this))host.EndMinigame();}
         public void OnEnded()

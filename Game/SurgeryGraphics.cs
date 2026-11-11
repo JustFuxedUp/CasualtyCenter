@@ -6,7 +6,7 @@ namespace CasualtiesSurgery.Game
     public sealed class ToolWheelGraphic : MaskableGraphic
     {
         public int Selected = -1;
-        public int ToolCount=3;
+        public int ToolCount=4;
         public static int Pick(Vector2 delta,int count)
         {
             if(delta.magnitude<14)return -1;

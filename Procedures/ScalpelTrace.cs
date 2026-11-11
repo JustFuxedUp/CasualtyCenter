@@ -29,6 +29,16 @@ namespace CasualtiesSurgery.Procedures
         public bool[] Cuts=new bool[9],Aligned=new bool[2];
         public float[] Angles={-32,38};
         public float SkinDebt, PlannedCost, CutSeconds;
+        public float[] GelCoverage=new float[9];
+        public float BoneQualitySum;
+        public int BoneQualityCount;
+        public float Coverage {get {float sum=0;foreach(float amount in GelCoverage)sum+=amount/GelRules.SectionMl;return sum/GelCoverage.Length;}}
+        public bool Disinfect(int index,float ml)
+        {
+            if(Stage==FractureStage.Complete)return false;
+            float before=GelCoverage[index];GelCoverage[index]=GelRules.Deposit(before,ml,GelRules.SectionMl);return GelCoverage[index]>before;
+        }
+        public float OverallQuality(int closure)=>(CutScore+BoneQualitySum+closure)/(2+BoneQualityCount);
         public bool Started;
         public int CutsDone {get {int n=0;foreach(bool c in Cuts)if(c)n++;return n;}}
         public int CutScore => Math.Max(0,Math.Min(100,(int)(100-Math.Max(0,CutSeconds-2)*8)));
@@ -44,6 +54,7 @@ namespace CasualtiesSurgery.Procedures
         public bool Align(int index)
         {
             if(Stage!=FractureStage.Alignment || Aligned[index] || AngleError(Angles[index])>12)return false;
+            BoneQualitySum+=100*(1-AngleError(Angles[index])/24);BoneQualityCount++;
             Aligned[index]=true;Angles[index]=0;
             if(Array.TrueForAll(Aligned,a=>a))Stage=FractureStage.Closure;
             return true;
@@ -59,6 +70,7 @@ namespace CasualtiesSurgery.Procedures
         {
             if(Stage<FractureStage.Incision || Stage>FractureStage.Complete || Cuts==null || Cuts.Length!=9 || Aligned==null || Aligned.Length!=2 || Angles==null || Angles.Length!=2 ||
                 !Finite(SkinDebt) || SkinDebt<0 || SkinDebt>60.01f || !Finite(PlannedCost) || PlannedCost<0 || PlannedCost>60 || !Finite(CutSeconds) || CutSeconds<0 || Array.Exists(Angles,a=>!Finite(a)))throw new ArgumentException("Invalid fracture operation save.");
+            if(GelCoverage==null || GelCoverage.Length!=9 || Array.Exists(GelCoverage,a=>!Finite(a)||a<0||a>GelRules.SectionMl+.001f) || BoneQualityCount<0 || BoneQualityCount>2 || !Finite(BoneQualitySum) || BoneQualitySum<0 || BoneQualitySum>200)throw new ArgumentException("Invalid gel/quality state.");
             if((!Started && (CutsDone!=0 || SkinDebt!=0 || PlannedCost!=0 || Stage!=FractureStage.Incision)) ||
                 (Stage>=FractureStage.Alignment && CutsDone!=Cuts.Length) ||
                 (Stage==FractureStage.Complete && SkinDebt!=0))throw new ArgumentException("Inconsistent fracture operation save.");
