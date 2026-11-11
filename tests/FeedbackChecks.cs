@@ -32,7 +32,7 @@ static class FeedbackChecks
         rejected=false;try {WaveData.Read(bytes.AsSpan(0,bytes.Length-1).ToArray());}catch(InvalidDataException){rejected=true;}
         check(rejected,"Truncated WAV rejected");
         string folder=Environment.GetEnvironmentVariable("SURGERY_AUDIO_TEST_DIR");
-        if(!string.IsNullOrEmpty(folder)) foreach(string name in new[]{"Bad-Ok","Great","Mistake","SutureStitch","ForcepsGrab"})
+        if(!string.IsNullOrEmpty(folder)) foreach(string name in new[]{"Bad-Ok","Great","Mistake","SutureStitch","ForcepsGrab","Scalpel"})
         {
             wave=WaveData.Read(File.ReadAllBytes(Path.Combine(folder,name+".wav")));
             check(wave.Samples.Length>0 && wave.Rate==22050 && wave.Channels==1,"Local sound decoded: "+name);

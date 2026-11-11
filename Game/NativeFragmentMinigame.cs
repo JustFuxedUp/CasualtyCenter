@@ -11,7 +11,7 @@ using UnityEngine.UI;
 namespace CasualtiesSurgery.Game
 {
     // A real game Minigame: the host supplies the hand physics, grip input, exit and cleanup.
-    public sealed class NativeFragmentMinigame : Minigame
+    public sealed class NativeFragmentMinigame : Minigame,ISurgery
     {
         readonly MinigameBase host;
         readonly WoundView source;
@@ -53,7 +53,10 @@ namespace CasualtiesSurgery.Game
         public bool BlocksToolInput => !Ended && (wheelOpen || Input.GetKey(wheelKey) || Input.GetKeyUp(wheelKey) || Input.GetMouseButton(1) || Input.GetMouseButtonUp(1));
         TextMeshProUGUI heading;
         FragmentPull gesture;
-        bool forceps = true, readyForPress;
+        bool forceps => Plugin.SelectedTool==SurgeryTool.Forceps;
+        bool readyForPress;
+        readonly ScalpelTrace scalpel=new ScalpelTrace();
+        float nextScalpelMistake;
         string message = "Use the native hand: grip SHARD, follow the path, release at END.";
         public bool Ended { get; private set; }
 
@@ -61,12 +64,12 @@ namespace CasualtiesSurgery.Game
             float recovery, float reduction, KeyCode wheelKey, float viewScale, float handScale, Action<string> log)
         {
             this.host = host; this.source = source; this.log = log;
-            this.wheelKey = wheelKey; this.viewScale = viewScale; forceps=Plugin.SelectedForceps;
+            this.wheelKey = wheelKey; this.viewScale = viewScale;
             patientLimb=limb; this.recovery=recovery; this.reduction=reduction; this.handScale=handScale;
             board=FragmentBoardStore.Get(limb);
         }
         public float HandScale => handScale;
-        public override HandSpriteType HandType() => forceps ? HandSpriteType.Tweezers : HandSpriteType.Point;
+        public override HandSpriteType HandType() => Plugin.SelectedTool==SurgeryTool.Scalpel?HandSpriteType.Blade:forceps ? HandSpriteType.Tweezers : HandSpriteType.Point;
         // The host looks up this existing key once at startup; RefreshGuide then supplies our stage instructions.
         public override string GuideLocaleString() => "shrapnelMinigameGuide";
         public override bool NeedsItem() => false;
@@ -102,7 +105,8 @@ namespace CasualtiesSurgery.Game
             wheel.SetParent(root, false); wheel.localScale=Vector3.one*viewScale; wheel.sizeDelta = new Vector2(380, 380);
             wheelGraphic = wheel.GetComponent<ToolWheelGraphic>(); wheelGraphic.raycastTarget = false;
             Text("Forceps", wheel, new Vector2(118, 0), new Vector2(145, 90), 30).text = "Forceps";
-            Text("Suture", wheel, new Vector2(-118, 0), new Vector2(145, 90), 30).text = "Suture";
+            Text("Suture", wheel, new Vector2(-60, 104), new Vector2(145, 90), 30).text = "Suture";
+            Text("Scalpel",wheel,new Vector2(-60,-104),new Vector2(145,90),30).text="Scalpel";
             wheel.gameObject.SetActive(false);
             SelectFirst(); RefreshGuide();
         }
@@ -233,6 +237,13 @@ namespace CasualtiesSurgery.Game
                 if (!host.handClicking) readyForPress = true;
                 RefreshGuide(); return;
             }
+            if(Plugin.SelectedTool==SurgeryTool.Scalpel)
+            {
+                float damage=scalpel.Step(host.handClicking,false,Time.deltaTime);
+                if(damage>0){FractureStore.ScalpelDamage(patientLimb,damage);if(Time.unscaledTime>=nextScalpelMistake){Plugin.Feedback?.Mistake();nextScalpelMistake=Time.unscaledTime+.5f;}}
+                RefreshGuide();return;
+            }
+            scalpel.Reset();
             BindGestureTarget();
             Vector3 local = wound.InverseTransformPoint(host.handTransform.position);
             bool extraction = session.Procedure.Stage == FragmentStage.Extraction;
@@ -292,7 +303,7 @@ namespace CasualtiesSurgery.Game
             if (Input.GetKeyDown(wheelKey) && PointerInsideWindow())
             {
                 wheelOpen = true; wheelScreenOrigin = Input.mousePosition; frozenHand = host.handPos;
-                gesture.Reset(); ResetFragment(); suture.Reset(); ClearTrace(); readyForPress = false; host.ForceUngrab();
+                gesture.Reset(); ResetFragment(); suture.Reset(); scalpel.Reset(); ClearTrace(); readyForPress = false; host.ForceUngrab();
                 var canvas = root.GetComponentInParent<Canvas>();
                 RectTransformUtility.ScreenPointToLocalPointInRectangle(root, wheelScreenOrigin,
                     canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera, out var point);
@@ -300,11 +311,11 @@ namespace CasualtiesSurgery.Game
             }
             if (!wheelOpen) return false;
             Vector2 delta = (Vector2)Input.mousePosition - wheelScreenOrigin;
-            int selected = delta.magnitude < 14 ? -1 : (delta.x >= 0 ? 0 : 1);
+            int selected = ToolWheelGraphic.Pick(delta,3);
             wheelGraphic.Selected = selected; wheelGraphic.SetVerticesDirty();
             if (Input.GetKeyUp(wheelKey))
             {
-                if (selected >= 0) { forceps = selected == 0; Plugin.SelectedForceps=forceps; }
+                if (selected >= 0) { Plugin.SelectedTool=(SurgeryTool)selected; }
                 wheelOpen = false; wheel.gameObject.SetActive(false); host.UpdateHandSprite(true);
                 message = forceps ? "Forceps selected." : "Suture selected: hold and zigzag down the wound, then release.";
             }
@@ -393,7 +404,7 @@ namespace CasualtiesSurgery.Game
             if (Ended || heading == null) return;
             bool extraction = session.Procedure.Stage == FragmentStage.Extraction;
             heading.text = patientLimb.fullName+" / "+board.Remaining+" wounds"+ (board.NextId>12 ? " / page "+(page+1)+" (PgUp/PgDn)" : "");
-            host.guideText.text = "Hold " + wheelKey + " inside for tools. Right-click outside to exit. " + (forceps ? "Pull until loose, then release." : "Cross the wound three times, then release.");
+            host.guideText.text = "Hold " + wheelKey + " inside for tools. Right-click outside to exit. " + (Plugin.SelectedTool==SurgeryTool.Scalpel ? "No cutting objectives here; scalpel use damages tissue." : forceps ? "Pull until loose, then release." : "Cross the wound three times, then release.");
         }
         public void Finish(string reason)
         {
@@ -438,7 +449,7 @@ namespace CasualtiesSurgery.Game
     {
         static void Postfix(MinigameBase __instance)
         {
-            if (__instance.currentMinigame is NativeFragmentMinigame surgery && !surgery.Ended)
+            if (__instance.currentMinigame is ISurgery surgery && !surgery.Ended)
             {
                 // Native code just set (+/-1,1,1). Scale its result, preserving the hand-slot mirror.
                 // It resets on every call, so this multiplication cannot compound across frames.
@@ -452,7 +463,7 @@ namespace CasualtiesSurgery.Game
     {
         static void Prefix(MinigameBase __instance)
         {
-            if (__instance.currentMinigame is NativeFragmentMinigame surgery) surgery.OnEnded();
+            if (__instance.currentMinigame is ISurgery surgery) surgery.OnEnded();
         }
     }
 }

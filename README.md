@@ -2,7 +2,16 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.10.2 full-circle wounds and grab feedback
+## Current build: 0.11.0 scalpel and fracture surgery
+
+Fractured limbs now offer **Open / align fracture / close** from the health dummy.
+Use the scalpel to touch incision markers, forceps to rotate two bone pieces into
+alignment, then suture the incision. Partial operations persist across saves.
+Off-target scalpel use damages tissue after 0.2 seconds. Successful closure
+restores recorded incision skin cost according to quality and cuts the remaining
+fracture timer to 25% without completing natural healing. Art remains provisional.
+See the [fracture controls, balance and acceptance checklist](docs/FRACTURE-MVP.md).
+
 
 Open the normal health screen, right-click a limb on the dummy, and select
 **Extract fragment + suture**. The game's native minigame screen and hand open.
@@ -57,7 +66,7 @@ assemblies during build. The small standalone rule-check runner targets .NET 10.
 Close the game first. Copy `lib/CUCoreLib/1.1/CUCoreLib.dll` into
 `BepInEx/plugins/CUCoreLib/`. Replace the existing surgery plugin with
 `bin/Release/net472/CasualtiesSurgery.dll` in `BepInEx/plugins/CasualtiesSurgery/`.
-For local sound feedback, copy the five placeholder WAVs into an `Audio/` folder beside the surgery DLL. Audio assets are not included in Git; missing sounds do not prevent play.
+For local sound feedback, copy the six placeholder WAVs into an `Audio/` folder beside the surgery DLL. Audio assets are not included in Git; missing sounds do not prevent play.
 Keep exactly one copy of each plugin DLL in the plugins tree.
 
 Set `HideManagerGameObject = true` in `BepInEx/config/BepInEx.cfg` and restart.

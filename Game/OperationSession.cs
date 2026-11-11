@@ -24,7 +24,7 @@ namespace CasualtiesSurgery.Game
             origin = patient.transform.position; scene = patient.gameObject.scene.handle;
             this.skinRecovery = skinRecovery; this.bleedingReduction = bleedingReduction;
         }
-        public static string Ineligible(Body patient, Limb limb, Minigame allowedMinigame = null)
+        public static string Ineligible(Body patient, Limb limb, Minigame allowedMinigame = null, bool requireFragments = true)
         {
             if (MultiplayerApi.IsRunning) return "Surgery MVP is singleplayer only.";
             if (patient == null || PlayerCamera.main == null || PlayerCamera.main.body != patient)
@@ -34,7 +34,7 @@ namespace CasualtiesSurgery.Game
                 return "Limb no longer belongs to this patient.";
             if (limb.dismembered) return "Detached limbs cannot be treated.";
             if (limb.prostheticInfo.hasProsthetic) return "This procedure treats organic skin only.";
-            if (limb.shrapnel <= 0) return "No fragments in this limb.";
+            if (requireFragments && limb.shrapnel <= 0) return "No fragments in this limb.";
             if (float.IsNaN(limb.skinHealth) || float.IsInfinity(limb.skinHealth) || limb.skinHealth < 0 || limb.skinHealth > 100 ||
                 float.IsNaN(limb.bleedAmount) || float.IsInfinity(limb.bleedAmount) || limb.bleedAmount < 0)
                 return "Invalid wound values; treatment stopped.";

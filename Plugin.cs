@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 
 namespace CasualtiesSurgery
 {
-    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.10.2")]
+    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.11.0")]
     [BepInDependency("net.cucorelib", "1.1")]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -17,10 +17,10 @@ namespace CasualtiesSurgery
             ((instance.healthMenu != null && instance.healthMenu.IsOpen) || Time.frameCount <= instance.releaseFrame || instance.waitForRightRelease || (instance.active != null && instance.active.BlocksToolInput));
         public static bool OperationVisible => instance != null && instance.active != null;
         internal static SurgeryFeedback Feedback => instance?.feedback;
-        internal static bool SelectedForceps { get; set; } = true;
+        internal static SurgeryTool SelectedTool {get;set;} = SurgeryTool.Forceps;
         SurgeryFeedback feedback;
         HealthMenu healthMenu;
-        NativeFragmentMinigame active;
+        ISurgery active;
         ConfigEntry<float> recovery, reduction, viewScale, handScale;
         ConfigEntry<KeyCode> wheelKey;
         Harmony harmony;
@@ -42,6 +42,7 @@ namespace CasualtiesSurgery
             handScale=Config.Bind("Interface","HandScale",0.33f,
                 new ConfigDescription("Hand size independent of wound and wheel scale.",new AcceptableValueRange<float>(0.1f,0.4f)));
             CUCoreLib.Registries.SaveRegistry.RegisterLimbProvider("local.casualties.surgery.fragment-board",new FragmentBoardStore());
+            CUCoreLib.Registries.SaveRegistry.RegisterLimbProvider("local.casualties.surgery.fracture",new FractureStore());
             recovery = Config.Bind("Treatment", "SkinRecovery", 5f,
                 new ConfigDescription("Skin points restored per completed fragment and suture.", new AcceptableValueRange<float>(0.1f, 100f)));
             reduction = Config.Bind("Treatment", "BleedingReduction", 1f,
@@ -57,9 +58,9 @@ namespace CasualtiesSurgery
             feedback=gameObject.AddComponent<SurgeryFeedback>();
             var soundVolume=Config.Bind("Audio","FeedbackVolume",0.7f,new ConfigDescription("Surgery feedback volume.",new AcceptableValueRange<float>(0,1)));
             feedback.Initialize(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(typeof(Plugin).Assembly.Location),"Audio"),soundVolume.Value,text=>Logger.LogWarning(text));
-            healthMenu = new HealthMenu(BeginFromHealth, () => releaseFrame = Time.frameCount + 1);
+            healthMenu = new HealthMenu(BeginFromHealth, BeginFracture, () => releaseFrame = Time.frameCount + 1);
             SceneManager.activeSceneChanged += SceneChanged;
-            Logger.LogInfo("Casualty Center 0.10.2 loaded. Health-dummy surgery uses the native minigame system.");
+            Logger.LogInfo("Casualty Center 0.11.0 loaded. Health-dummy surgery uses the native minigame system.");
         }
         void BeginFromHealth(WoundView source, Limb limb)
         {
@@ -70,7 +71,7 @@ namespace CasualtiesSurgery
                 text => Logger.LogInfo(text));
             try
             {
-                host.StartMinigame(active, null);
+                host.StartMinigame((Minigame)active, null);
                 if (!ReferenceEquals(host.currentMinigame, active))
                 { active.OnEnded(); active = null; return; }
                 active.RefreshGuide();
@@ -80,6 +81,14 @@ namespace CasualtiesSurgery
                 active?.Finish("Surgery could not start."); active = null;
                 Logger.LogError("Native surgery startup failed: " + error);
             }
+        }
+        void BeginFracture(WoundView source,Limb limb)
+        {
+            if(!enabled || active!=null || source==null || !source.gameObject.activeInHierarchy || FractureStore.Ineligible(source.body,limb)!=null || MinigameBase.main==null)return;
+            var host=MinigameBase.main;
+            active=new NativeFractureMinigame(host,source,limb,handScale.Value,wheelKey.Value,text=>Logger.LogInfo(text));
+            try {host.StartMinigame((Minigame)active,null);if(!ReferenceEquals(host.currentMinigame,active)){active.OnEnded();active=null;return;}active.RefreshGuide();}
+            catch(System.Exception error){active?.Finish("Fracture surgery startup failed.");active=null;Logger.LogError(error);}
         }
         void Update()
         {

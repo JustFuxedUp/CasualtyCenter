@@ -11,19 +11,20 @@ namespace CasualtiesSurgery.Game
     internal sealed class HealthMenu : IDisposable
     {
         readonly Action<WoundView, Limb> begin;
+        readonly Action<WoundView,Limb> beginFracture;
         readonly Action dismiss;
         readonly List<HealthLimbClick> hooks = new List<HealthLimbClick>();
         WoundView view;
         GameObject overlay;
         RectTransform panel;
         TextMeshProUGUI title, reason;
-        Button procedure;
+        Button procedure,fracture;
         Body patient;
         Limb limb;
         public bool IsOpen => overlay != null && overlay.activeSelf;
 
-        public HealthMenu(Action<WoundView, Limb> begin, Action dismiss)
-        { this.begin = begin; this.dismiss = dismiss; }
+        public HealthMenu(Action<WoundView, Limb> begin, Action<WoundView,Limb> beginFracture, Action dismiss)
+        { this.begin = begin; this.beginFracture=beginFracture; this.dismiss = dismiss; }
 
         public void Tick()
         {
@@ -62,7 +63,7 @@ namespace CasualtiesSurgery.Game
             Vector2 local;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, pointer.position, pointer.pressEventCamera, out local);
             Rect bounds = parent.rect;
-            float width = Mathf.Min(280, bounds.width), height = Mathf.Min(174, bounds.height);
+            float width = Mathf.Min(280, bounds.width), height = Mathf.Min(222, bounds.height);
             panel.sizeDelta = new Vector2(width, height);
             panel.localPosition = new Vector3(
                 Mathf.Clamp(local.x + 12, bounds.xMin, bounds.xMax - width),
@@ -84,8 +85,9 @@ namespace CasualtiesSurgery.Game
             box.GetComponent<Image>().color = new Color(0.025f,0.05f,0.11f,0.98f);
             title = Text("PatientLimb", panel, new Vector2(12, -10), new Vector2(256, 40), 16);
             procedure = MakeButton("Extract fragment + suture", new Vector2(12, -56), new Vector2(256, 32), Start);
-            reason = Text("Eligibility", panel, new Vector2(12, -94), new Vector2(256, 42), 13);
-            MakeButton("Back", new Vector2(12, -140), new Vector2(256, 26), Close);
+            fracture=MakeButton("Open / align fracture / close",new Vector2(12,-94),new Vector2(256,32),StartFracture);
+            reason = Text("Eligibility", panel, new Vector2(12, -132), new Vector2(256, 42), 13);
+            MakeButton("Back", new Vector2(12, -186), new Vector2(256, 26), Close);
             overlay.SetActive(false);
         }
 
@@ -117,7 +119,9 @@ namespace CasualtiesSurgery.Game
             string unavailable = OperationSession.Ineligible(patient, limb);
             title.text = "SURGERY / " + (limb != null ? limb.fullName : "No limb");
             procedure.interactable = unavailable == null;
-            reason.text = unavailable ?? (limb.shrapnel + " fragment(s). Free test kit; world stays live.");
+            string fractureReason=FractureStore.Ineligible(patient,limb);
+            fracture.interactable=fractureReason==null;
+            reason.text=unavailable==null || fractureReason==null ? "Free test tools. World stays live." : fractureReason;
         }
         void Start()
         {
@@ -126,6 +130,11 @@ namespace CasualtiesSurgery.Game
                 OperationSession.Ineligible(patient, limb) != null) { Refresh(); return; }
             WoundView source = view; Limb selected = limb;
             Close(); begin(source, selected);
+        }
+        void StartFracture()
+        {
+            if(view==null || !view.gameObject.activeInHierarchy || view.body!=patient || FractureStore.Ineligible(patient,limb)!=null){Refresh();return;}
+            var source=view;var selected=limb;Close();beginFracture(source,selected);
         }
         public void Close()
         {

@@ -6,14 +6,21 @@ namespace CasualtiesSurgery.Game
     public sealed class ToolWheelGraphic : MaskableGraphic
     {
         public int Selected = -1;
+        public int ToolCount=3;
+        public static int Pick(Vector2 delta,int count)
+        {
+            if(delta.magnitude<14)return -1;
+            float step=Mathf.PI*2/count,angle=Mathf.Atan2(delta.y,delta.x)+step/2;
+            return Mathf.FloorToInt(Mathf.Repeat(angle,Mathf.PI*2)/step)%count;
+        }
         protected override void OnPopulateMesh(VertexHelper mesh)
         {
             mesh.Clear();
-            for (int tool = 0; tool < 2; tool++)
+            for (int tool = 0; tool < ToolCount; tool++)
                 for (int segment = 0; segment < 30; segment++)
                 {
-                    float a = (tool * Mathf.PI - Mathf.PI / 2 + 0.04f) + segment * (Mathf.PI - 0.08f) / 30;
-                    float b = a + (Mathf.PI - 0.08f) / 30;
+                    float a = (tool * Mathf.PI*2/ToolCount - Mathf.PI/ToolCount + 0.04f) + segment * (Mathf.PI*2/ToolCount - 0.08f) / 30;
+                    float b = a + (Mathf.PI*2/ToolCount - 0.08f) / 30;
                     Color c = tool == Selected ? new Color(0.12f,0.25f,0.48f,0.96f) : new Color(0.025f,0.06f,0.14f,0.96f);
                     int start = mesh.currentVertCount;
                     foreach (Vector2 point in new[] { Polar(a, 55), Polar(a, 190), Polar(b, 190), Polar(b, 55) })

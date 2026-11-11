@@ -12,11 +12,11 @@ namespace CasualtiesSurgery.Game
         readonly Dictionary<string,AudioClip> clips=new Dictionary<string,AudioClip>();
         sealed class Popup { public TextMeshProUGUI Text;public float Age;public Vector2 Origin; }
         readonly List<Popup> popups=new List<Popup>();
-        float lastStitch=-10;
+        float lastStitch=-10,lastCut=-10;
         public void Initialize(string folder,float volume,Action<string> warn)
         {
             source=gameObject.AddComponent<AudioSource>();source.playOnAwake=false;source.spatialBlend=0;source.volume=volume;
-            foreach(string name in new[]{"Bad-Ok","Great","Mistake","SutureStitch","ForcepsGrab"})
+            foreach(string name in new[]{"Bad-Ok","Great","Mistake","SutureStitch","ForcepsGrab","Scalpel"})
                 try
                 {
                     var wave=WaveData.Read(File.ReadAllBytes(Path.Combine(folder,name+".wav")));
@@ -26,6 +26,7 @@ namespace CasualtiesSurgery.Game
                 catch(Exception error) {warn("Could not load surgery sound "+name+": "+error.Message);}
         }
         void Play(string name) {if(source!=null && clips.TryGetValue(name,out var clip))source.PlayOneShot(clip);}
+        public void Cut(){if(Time.unscaledTime-lastCut<.07f)return;lastCut=Time.unscaledTime;Play("Scalpel");}
         public void Grab() {Play("ForcepsGrab");}
         public void Mistake() {Play("Mistake");}
         public void Stitch()

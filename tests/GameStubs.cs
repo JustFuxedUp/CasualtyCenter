@@ -31,7 +31,9 @@ public class Limb
     public Body body;
     public int shrapnel;
     public float skinHealth, bleedAmount;
-    public bool dismembered;
+    public bool dismembered, broken;
+    public float boneHealTimer,pain,muscleHealth=100;
+    public void BreakBone(){broken=true;boneHealTimer=100;}
     public ProstheticInfo prostheticInfo;
 }
 public class PlayerCamera { public static PlayerCamera main; public Body body; }
@@ -52,4 +54,9 @@ namespace CUCoreLib.Saving
         public void Defer(System.Action action) { pending.Add(action); }
         public void Flush() { foreach(var action in pending) action(); pending.Clear(); }
     }
+}
+
+namespace HarmonyLib
+{
+    public sealed class HarmonyPatch : System.Attribute {public HarmonyPatch(System.Type type,string name){}}
 }
