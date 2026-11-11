@@ -8,3 +8,6 @@ lib/
 work/
 *.bak
 
+
+# Local placeholder audio supplied for playtesting.
+assets/audio/

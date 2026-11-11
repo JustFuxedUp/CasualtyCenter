@@ -81,7 +81,7 @@ namespace CasualtiesSurgery.Game
             box.transform.SetParent(overlay.transform, false);
             panel = (RectTransform)box.transform;
             panel.anchorMin = panel.anchorMax = new Vector2(0.5f, 0.5f); panel.pivot = new Vector2(0, 1);
-            box.GetComponent<Image>().color = new Color(0.08f, 0.12f, 0.13f, 0.98f);
+            box.GetComponent<Image>().color = new Color(0.025f,0.05f,0.11f,0.98f);
             title = Text("PatientLimb", panel, new Vector2(12, -10), new Vector2(256, 40), 16);
             procedure = MakeButton("Extract fragment + suture", new Vector2(12, -56), new Vector2(256, 32), Start);
             reason = Text("Eligibility", panel, new Vector2(12, -94), new Vector2(256, 42), 13);
@@ -93,7 +93,7 @@ namespace CasualtiesSurgery.Game
         {
             var go = new GameObject(caption, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(panel, false); Place((RectTransform)go.transform, position, size);
-            go.GetComponent<Image>().color = new Color(0.22f, 0.35f, 0.34f);
+            go.GetComponent<Image>().color = new Color(0.10f,0.19f,0.36f);
             var button = go.GetComponent<Button>(); button.targetGraphic = go.GetComponent<Image>();
             button.onClick.AddListener(action);
             var text = Text("Label", go.transform, Vector2.zero, size, 14);

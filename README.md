@@ -2,15 +2,15 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.9.0 surgery gameplay flow
+## Current build: 0.10.0 direct interaction and feedback
 
 Open the normal health screen, right-click a limb on the dummy, and select
 **Extract fragment + suture**. The game's native minigame screen and hand open.
-On an attached organic limb with fragments, use forceps to pull a fragment along its marked path, then use
+On an attached organic limb with fragments, use forceps to pull a fragment away from the wound, then use
 the suture tool to cross the wound at least three times in one held stroke. Hold right mouse
 for the cursor-centered tool wheel. The window stays full size; wound assets default to 40% scale and the hand to 33%.
 Each limb has a seeded board with one site per fragment; interruption and normal
-saves preserve completed sites and pending sutures. Click a wound to select it.
+saves preserve completed sites and pending sutures. Grab any exposed shard tip directly; the selected tool stays unchanged between wounds.
 Right-click outside to exit. Failed sutures have no cost. Completion removes one fragment,
 restores 5 skin points and reduces bleeding by 1 using the latest wound values.
 Healing amounts are configurable. Extraction slips cost 1 skin and add up to 0.2 bleeding; failed sutures are harmless.
@@ -19,7 +19,8 @@ This playtest uses free tools: crafting, supplies and multiplayer surgery are
 not implemented. The world keeps running while the panel is open. The native minigame handles procedure input and exits; the health context menu
 blocks background player input while it is open.
 
-- [Current controls, scoring and save migration](docs/GAMEPLAY-FLOW.md)
+- [Current interaction and audio feedback](docs/DIRECT-FEEDBACK.md)
+- [Previous controls, scoring and save migration](docs/GAMEPLAY-FLOW.md)
 - [Hand-scale fix and larger fragments](docs/VISUAL-SCALE-FIX.md)
 - [Current board controls, persistence and playtest](docs/PERSISTENT-BOARDS.md)
 - [Previous changes, controls and playtest](docs/SURGERY-GRACE.md)
@@ -55,6 +56,7 @@ assemblies during build. The small standalone rule-check runner targets .NET 10.
 Close the game first. Copy `lib/CUCoreLib/1.1/CUCoreLib.dll` into
 `BepInEx/plugins/CUCoreLib/`. Replace the existing surgery plugin with
 `bin/Release/net472/CasualtiesSurgery.dll` in `BepInEx/plugins/CasualtiesSurgery/`.
+For local sound feedback, copy the four placeholder WAVs into an `Audio/` folder beside the surgery DLL. Audio assets are not included in Git; missing sounds do not prevent play.
 Keep exactly one copy of each plugin DLL in the plugins tree.
 
 Set `HideManagerGameObject = true` in `BepInEx/config/BepInEx.cfg` and restart.

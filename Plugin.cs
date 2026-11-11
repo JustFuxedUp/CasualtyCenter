@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 
 namespace CasualtiesSurgery
 {
-    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.9.0")]
+    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.10.0")]
     [BepInDependency("net.cucorelib", "1.1")]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -16,6 +16,9 @@ namespace CasualtiesSurgery
         public static bool BlockInput => instance != null &&
             ((instance.healthMenu != null && instance.healthMenu.IsOpen) || Time.frameCount <= instance.releaseFrame || instance.waitForRightRelease || (instance.active != null && instance.active.BlocksToolInput));
         public static bool OperationVisible => instance != null && instance.active != null;
+        internal static SurgeryFeedback Feedback => instance?.feedback;
+        internal static bool SelectedForceps { get; set; } = true;
+        SurgeryFeedback feedback;
         HealthMenu healthMenu;
         NativeFragmentMinigame active;
         ConfigEntry<float> recovery, reduction, viewScale, handScale;
@@ -51,9 +54,12 @@ namespace CasualtiesSurgery
                 Logger.LogError("Surgery hooks could not initialize; surgery disabled. " + error);
                 return;
             }
+            feedback=gameObject.AddComponent<SurgeryFeedback>();
+            var soundVolume=Config.Bind("Audio","FeedbackVolume",0.7f,new ConfigDescription("Surgery feedback volume.",new AcceptableValueRange<float>(0,1)));
+            feedback.Initialize(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(typeof(Plugin).Assembly.Location),"Audio"),soundVolume.Value,text=>Logger.LogWarning(text));
             healthMenu = new HealthMenu(BeginFromHealth, () => releaseFrame = Time.frameCount + 1);
             SceneManager.activeSceneChanged += SceneChanged;
-            Logger.LogInfo("Casualty Center 0.9.0 loaded. Health-dummy surgery uses the native minigame system.");
+            Logger.LogInfo("Casualty Center 0.10.0 loaded. Health-dummy surgery uses the native minigame system.");
         }
         void BeginFromHealth(WoundView source, Limb limb)
         {
@@ -96,7 +102,7 @@ namespace CasualtiesSurgery
         void OnDestroy()
         {
             Stop(); healthMenu?.Dispose(); SceneManager.activeSceneChanged -= SceneChanged;
-            harmony?.UnpatchSelf(); if (instance == this) instance = null;
+            harmony?.UnpatchSelf(); if(feedback!=null)Destroy(feedback); if (instance == this) instance = null;
         }
     }
 }

@@ -12,10 +12,12 @@ namespace CasualtiesSurgery.Procedures
         public float Travel { get; private set; }
         public FragmentPull(float grace = 2f, float requiredTravel = 0.8f, float endMargin = 0.05f)
         { this.grace=grace; this.requiredTravel=requiredTravel; this.endMargin=endMargin; }
+        public static bool CanGrip(float x,float y,float grace=2f)
+            =>Finite(x)&&Finite(y)&&Math.Abs(x)<=0.18f*grace&&Math.Abs(y-0.38f)<=0.09f*grace;
         public bool Begin(float x, float y)
         {
             Reset();
-            if (!Finite(x) || !Finite(y) || Math.Abs(x) > 0.18f*grace || Math.Abs(y-0.38f) > 0.09f*grace) return false;
+            if (!CanGrip(x,y,grace)) return false;
             gripX=x; gripY=y; Active=true; return true;
         }
         public bool Move(float x, float y)

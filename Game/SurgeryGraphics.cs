@@ -14,7 +14,7 @@ namespace CasualtiesSurgery.Game
                 {
                     float a = (tool * Mathf.PI - Mathf.PI / 2 + 0.04f) + segment * (Mathf.PI - 0.08f) / 30;
                     float b = a + (Mathf.PI - 0.08f) / 30;
-                    Color c = tool == Selected ? new Color(0.2f, 0.75f, 0.62f, 0.96f) : new Color(0.09f, 0.2f, 0.23f, 0.96f);
+                    Color c = tool == Selected ? new Color(0.12f,0.25f,0.48f,0.96f) : new Color(0.025f,0.06f,0.14f,0.96f);
                     int start = mesh.currentVertCount;
                     foreach (Vector2 point in new[] { Polar(a, 55), Polar(a, 190), Polar(b, 190), Polar(b, 55) })
                         mesh.AddVert(point, c, Vector2.zero);

@@ -62,6 +62,7 @@ static class Program
         GraceChecks.Run(Check);
         BoardChecks.Run(Check);
         FlowChecks.Run(Check);
+        FeedbackChecks.Run(Check);
         Console.WriteLine(checks + " procedure, gesture and session checks passed.");
     }
 }
