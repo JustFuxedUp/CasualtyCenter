@@ -2,13 +2,13 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.8.1 persistent fragment boards
+## Current build: 0.9.0 surgery gameplay flow
 
 Open the normal health screen, right-click a limb on the dummy, and select
 **Extract fragment + suture**. The game's native minigame screen and hand open.
 On an attached organic limb with fragments, use forceps to pull a fragment along its marked path, then use
-the suture tool to draw one continuous zigzag across the wound. Hold right mouse
-for the cursor-centered tool wheel. The window stays full size; wound assets default to 40% scale and the hand to 22%.
+the suture tool to cross the wound at least three times in one held stroke. Hold right mouse
+for the cursor-centered tool wheel. The window stays full size; wound assets default to 40% scale and the hand to 33%.
 Each limb has a seeded board with one site per fragment; interruption and normal
 saves preserve completed sites and pending sutures. Click a wound to select it.
 Right-click outside to exit. Failed sutures have no cost. Completion removes one fragment,
@@ -19,6 +19,7 @@ This playtest uses free tools: crafting, supplies and multiplayer surgery are
 not implemented. The world keeps running while the panel is open. The native minigame handles procedure input and exits; the health context menu
 blocks background player input while it is open.
 
+- [Current controls, scoring and save migration](docs/GAMEPLAY-FLOW.md)
 - [Hand-scale fix and larger fragments](docs/VISUAL-SCALE-FIX.md)
 - [Current board controls, persistence and playtest](docs/PERSISTENT-BOARDS.md)
 - [Previous changes, controls and playtest](docs/SURGERY-GRACE.md)

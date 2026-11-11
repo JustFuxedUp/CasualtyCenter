@@ -19,12 +19,11 @@ static class GraceChecks
         pull.Begin(0,0.38f); pull.Move(0,0); pull.Reset();
         check(!pull.Active && pull.Travel==0, "Tool switch clears fragment displacement");
         check(!pull.Begin(float.NaN,0.38f), "Invalid fragment pointer rejected");
-        var standard=new SutureStroke(); var generous=new SutureStroke(2);
-        check(!standard.Begin(-0.4f,0.2f) && generous.Begin(-0.4f,0.2f), "Doubled suture start grace accepted");
-        generous.Begin(-1,0);
-        check(generous.Move(-2.1f,0.1f), "Doubled outer wound margin accepted");
+        var generous=new SutureStroke(2);
+        check(generous.Begin(-0.4f,0.5f), "Suture starts away from prescribed endpoint");
+        check(generous.Move(-2.1f,0.1f), "Messy outside suture travel accepted");
         generous.Begin(-1,0); generous.Move(1,0.4f);
-        check(generous.Move(0.5f,0.2f), "Doubled backwards motion grace accepted");
+        check(generous.Move(0.5f,0.2f), "Suture can reverse along wound");
         int turns=0; float turnX=0;
         generous=new SutureStroke(2); generous.TurnCommitted += (x,y)=>{turns++;turnX=x;};
         generous.Begin(-1,0); generous.Move(0,0.1f); generous.Move(1,0.2f);

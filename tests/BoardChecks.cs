@@ -52,7 +52,7 @@ static class BoardChecks
         check(rejected,"Duplicate saved wound IDs rejected");
         var stroke=new SutureStroke(2); stroke.Begin(-1,0);
         check(stroke.Move(-2.6f,0.1f),"Messy suture can extend beyond the previous outer margin");
-        check(!stroke.Move(-3.1f,0.2f),"Suture still has a finite outside boundary");
+        check(stroke.Move(-3.1f,0.2f),"Travel outside wound does not invalidate completed crossings");
         var pull=new FragmentPull(2,0.2f,0.005f);
         check(pull.Begin(0,0.38f) && pull.End(0,0.18f),"Short perpendicular extraction stroke accepted");
         pull.Begin(0,0.38f);

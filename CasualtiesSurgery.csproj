@@ -4,7 +4,7 @@
     <AutomaticallyUseReferenceAssemblyPackages>true</AutomaticallyUseReferenceAssemblyPackages>
     <LangVersion>latest</LangVersion>
     <AssemblyName>CasualtiesSurgery</AssemblyName>
-    <Version>0.8.1</Version>
+    <Version>0.9.0</Version>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
   <Import Project="GamePath.local.props" Condition="Exists('GamePath.local.props')" />

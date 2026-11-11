@@ -2,49 +2,39 @@ using System;
 using CasualtiesSurgery.Procedures;
 static class SutureChecks
 {
-    static int Draw(float[] progress)
-    {
-        var s = new SutureStroke(); s.Begin(-1, 0);
-        for (int i = 0; i < progress.Length; i++)
-            if (!s.Move(i%2 == 0 ? 1 : -1, progress[i])) throw new Exception("Valid test stroke rejected");
-        if (!s.End(progress.Length%2 == 0 ? -1 : 1, 1, out int score)) throw new Exception("Test stroke did not complete");
-        return score;
-    }
     public static void Run(Action<bool,string> check)
     {
-        var s = new SutureStroke();
-        check(!s.End(-1,1,out _), "Suture requires a grip at the start");
-        check(!s.Begin(1,0) && !s.Begin(-1,0.5f), "Suture rejects wrong side and middle starts");
-        check(!s.Begin(float.NaN,0), "Nonfinite suture start rejected");
-        check(Draw(new[] {1f/6,2f/6,3f/6,4f/6,5f/6,1f}) >= 99, "Even efficient zigzag scores highly");
-        check(Draw(new[] {0.08f,0.35f,0.43f,0.72f,0.80f,1f}) < 90, "Uneven stitch spacing reduces quality");
-        check(Draw(new[] {0.25f,0.5f,0.75f,1f}) >= 99, "Four full crossings accepted without tracing exact guide dots");
-        s.Begin(-1,0); s.Move(1,1);
-        check(!s.End(1,1,out _), "Single diagonal cannot suture a whole wound");
-        s.Begin(-1,0); s.Move(1,0.15f); s.Move(-1,0.3f); s.Move(1,0.45f); s.Move(-1,0.6f);
-        check(!s.End(-1,0.6f,out _), "Early release grants no completed suture");
-        s.Begin(-1,0);
-        s.Move(1,0.01f);
-        check(!s.Move(-1,0.02f), "Side-to-side scribble without wound coverage rejected");
-        s.Begin(-1,0); s.Move(1,0.3f);
-        check(!s.Move(0,0.1f), "Large backwards stroke rejected");
-        s.Begin(-1,0);
-        check(!s.Move(2,0.2f) && !s.End(-1,1,out _), "Leaving wound invalidates the whole stroke");
-        s.Begin(-1,0); s.Reset();
-        check(!s.End(-1,1,out _), "Tool switch cannot resume an abandoned stroke");
-        s.Begin(-1,0);
-        check(!s.Move(float.PositiveInfinity,0.2f), "Nonfinite suture movement rejected");
-        s.Begin(-1,0);
-        for (int i=1; i<=6; i++) s.Move(i%2==1?1:-1,i/6f);
-        check(s.End(-1,1,out _) && !s.End(-1,1,out _), "Suture release cannot be replayed");
-        // Same geometric stroke sampled at different frame rates must keep the same result.
-        s.Begin(-1,0); float previousX=-1, previousY=0;
-        for (int i=1; i<=6; i++)
-        {
-            float nextX=i%2==1?1:-1, nextY=i/6f;
-            for(int n=1;n<=20;n++) s.Move(previousX+(nextX-previousX)*n/20f,previousY+(nextY-previousY)*n/20f);
-            previousX=nextX; previousY=nextY;
-        }
-        check(s.End(-1,1,out int sampled) && sampled >= 90, "Densely sampled clean zigzag remains high quality");
+        var s=new SutureStroke(2);
+        check(!s.End(1,0.5f,out _),"Release without grip does not score");
+        check(s.Begin(0,0.5f),"Suture can start in the middle of the wound");
+        s.Move(1,0.5f);s.Move(-1,0.6f);s.Move(1,0.7f);s.Move(-1,0.8f);
+        check(s.End(0,1.5f,out _) && s.Crossings==3,"Three crossings score with a center start and outside end");
+        check(!s.End(0,1.5f,out _),"Suture release cannot score twice");
+        s.Begin(1,0.8f);s.Move(-1,0.7f);s.Move(1,0.6f);s.Move(-1,0.5f);
+        check(s.End(-3,-0.5f,out _),"Reverse-direction suture and arbitrary endpoint accepted");
+        s.Begin(-1,0.2f);s.Move(1,0.3f);s.Move(-1,0.4f);
+        check(!s.End(-1,0.5f,out _),"Two crossings do not score");
+        s.Begin(-1,2);s.Move(1,2);s.Move(-1,2);s.Move(1,2);
+        check(!s.End(1,2,out _),"Crossing an imaginary extension beyond the wound does not count");
+        s.Begin(-1,2);s.Move(-1,0.4f);s.Move(1,0.4f);s.Move(-1,0.6f);s.Move(1,0.8f);
+        check(s.End(3,2,out _),"Stroke may enter wound from elsewhere and leave after three crossings");
+        s.Begin(-0.1f,0.5f);
+        for(int i=0;i<20;i++)s.Move(i%2==0?0.1f:-0.1f,0.5f);
+        check(!s.End(0.1f,0.5f,out _),"Tiny center jitter is not three full crossings");
+        s.Begin(-1,0.5f);s.Move(0,0.5f);s.Move(1,0.5f);s.Move(0,0.5f);s.Move(-1,0.5f);s.Move(0,0.5f);s.Move(1,0.5f);
+        check(s.End(1,0.5f,out _) && s.Crossings==3,"Samples landing exactly on the center count once each");
+        s.Begin(-1,0.5f);s.Move(1,0.5f);s.Move(-1,0.5f);s.Move(1,0.5f);
+        check(s.End(1,0.5f,out _),"Three deliberate retraced crossings satisfy the current simple rule");
+        s.Begin(-1,0.2f);s.Move(1,0.4f);s.Reset();
+        check(!s.End(-1,0.5f,out _),"Interrupted suture cannot finish");
+        check(!s.Begin(float.NaN,0),"Invalid suture start rejected");
+        s.Begin(-1,0.2f);check(!s.Move(float.PositiveInfinity,0),"Invalid pointer terminates stroke");
+        int turns=0;s=new SutureStroke(2);s.TurnCommitted+=(x,y)=>turns++;
+        s.Begin(-1,0);s.Move(1,0.2f);check(turns==0,"Straight motion does not commit noisy trace segments");
+        s.Move(0.7f,0.22f);check(turns==1,"Direction reversal commits the prior turn");
+        s=new SutureStroke(2);s.Begin(-1,0);float px=-1,py=0;
+        for(int i=1;i<=4;i++)
+        {float x=i%2==1?1:-1,y=i/4f;for(int n=1;n<=20;n++)s.Move(px+(x-px)*n/20f,py+(y-py)*n/20f);px=x;py=y;}
+        check(s.End(-1,1,out int quality) && s.Crossings==4 && quality>=90,"Dense sampling preserves crossing count and clean score");
     }
 }

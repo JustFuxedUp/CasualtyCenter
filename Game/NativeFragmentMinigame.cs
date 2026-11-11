@@ -49,8 +49,11 @@ namespace CasualtiesSurgery.Game
         readonly float viewScale;
         float woundLength, woundWidth;
         int lineCount;
+        Vector3 grabOffset;
+        sealed class FadingShard { public Image Image; public float Age; }
+        readonly List<FadingShard> fading=new List<FadingShard>();
         public bool BlocksToolInput => !Ended && (wheelOpen || Input.GetKey(wheelKey) || Input.GetKeyUp(wheelKey) || Input.GetMouseButton(1) || Input.GetMouseButtonUp(1));
-        TextMeshProUGUI heading, status, startLabel;
+        TextMeshProUGUI heading, startLabel;
         FragmentPull gesture;
         bool forceps = true, readyForPress;
         string message = "Use the native hand: grip SHARD, follow the path, release at END.";
@@ -96,7 +99,7 @@ namespace CasualtiesSurgery.Game
                 if(!site.Completed) sites.Add(new SiteView { Site=site,Layout=board.Layout(site.Id) });
             log("Opened fragment board "+board.Seed+" on "+patientLimb.fullName+" with "+board.Remaining+" remaining sites.");
             suture.TurnCommitted += CommitThreadTurn;
-            status = Text("Status", root, new Vector2(0, -415), new Vector2(940, 145), 22);
+
             wheel = new GameObject("ToolWheel", typeof(RectTransform), typeof(ToolWheelGraphic)).GetComponent<RectTransform>();
             wheel.SetParent(root, false); wheel.localScale=Vector3.one*viewScale; wheel.sizeDelta = new Vector2(380, 380);
             wheelGraphic = wheel.GetComponent<ToolWheelGraphic>(); wheelGraphic.raycastTarget = false;
@@ -122,15 +125,15 @@ namespace CasualtiesSurgery.Game
                 var shardRect=shard.rectTransform;
                 // Anchor to the mask's left edge so the concealed base stays at the cut.
                 shardRect.anchorMin=shardRect.anchorMax=new Vector2(0,0.5f);
-                float shardLength=layout.Length*0.76f;
+                float shardLength=layout.Length*0.84f;
                 Vector2 shardSize=nativeShard.rect.size*(shardLength/nativeShard.rect.height);
                 shardSize.x*=1.25f; // Broader silhouette; the long axis stays perpendicular to the cut.
                 shardRect.sizeDelta=shardSize;
                 shardRect.localEulerAngles=new Vector3(0,0,-90);
-                var origin=new Vector2(shardLength*0.3f,0); shardRect.anchoredPosition=origin;
+                var origin=new Vector2(shardLength*0.15f,0); shardRect.anchoredPosition=origin;
                 var label=Text("SiteLabel",field,new Vector2(layout.X,layout.Y-layout.Length*viewScale/2-18),new Vector2(210,28),14);
                 view.Wound=art; view.Fragment=shardRect; view.Mask=mask; view.FragmentOrigin=origin;
-                view.Grip=17.5f+shardLength*0.62f; view.Pull=shardLength*0.2f+8; view.Label=label;
+                view.Grip=17.5f+shardLength*0.47f; view.Pull=shardLength*0.35f+8; view.Label=label;
         }
         void SelectFirst()
         {
@@ -170,7 +173,7 @@ namespace CasualtiesSurgery.Game
                 if(v.Wound==null) continue;
                 v.Wound.gameObject.SetActive(visible); v.Label.gameObject.SetActive(visible);
                 v.Fragment.gameObject.SetActive(!v.Site.Extracted);
-                v.Label.text=(v.Site==selectedSite ? "> " : "")+(v.Site.Id+1)+" / "+(v.Site.Extracted ? "SUTURE" : "FRAGMENT");
+                v.Label.text=v.Site==selectedSite ? "•" : "";
             }
         }
         bool ChangeSite()
@@ -185,8 +188,9 @@ namespace CasualtiesSurgery.Game
             }
             if(!host.handStartedClicking) return false;
             Vector2 point=field.InverseTransformPoint(host.handTransform.position);
-            var target=sites.Find(v=>!v.Site.Completed && v.Layout.Page==page &&
-                new Rect(v.Layout.X-105,v.Layout.Y-105,210,210).Contains(point));
+            var target=sites.Where(v=>!v.Site.Completed && v.Layout.Page==page)
+                .OrderBy(v=>(new Vector2(v.Layout.X,v.Layout.Y)-point).sqrMagnitude).FirstOrDefault();
+            if(target!=null && (new Vector2(target.Layout.X,target.Layout.Y)-point).sqrMagnitude>110*110) target=null;
             if(target==null || target.Site==selectedSite) return false;
             SelectSite(target); return true;
         }
@@ -205,6 +209,7 @@ namespace CasualtiesSurgery.Game
         public override void Update(List<RaycastResult> hits)
         {
             if (Ended) return;
+            UpdateFades();
             string invalid = InvalidReason();
             if (invalid != null) { Finish(invalid); return; }
             if (!wheelOpen && Input.GetMouseButtonDown(1) && !PointerInsideWindow())
@@ -225,7 +230,7 @@ namespace CasualtiesSurgery.Game
             {
                 if (forceps != extraction) message = "Hold " + wheelKey + " to select " + (extraction ? "Forceps." : "Suture.");
                 else if (extraction)
-                { if (!gesture.Begin(x, y)) message = "Grip the exposed tip of the fragment first."; }
+                { if (gesture.Begin(x,y)) grabOffset=fragment.position-host.handTransform.position; }
                 else
                 {
                     ClearTrace(); lastStroke = new Vector2(local.x, local.y);
@@ -242,7 +247,7 @@ namespace CasualtiesSurgery.Game
                     {
                         if (!gesture.End(x, y)) Slip();
                         else if (!session.Extract()) { Finish("Wound changed; treatment cancelled."); return; }
-                        else { selectedSite.Extracted=true; RefreshSites(); PrepareGesture(); message = "Fragment lifted. Switch to Suture and draw one zigzag down the wound."; }
+                        else { int score=gesture.Quality; FadeShard(); selectedSite.Extracted=true; RefreshSites(); PrepareGesture(); PlayerCamera.main.DoAlert("Extraction: "+score+"/100",true); }
                     }
                     else if (!suture.End(x, y, out int quality)) Slip();
                     else if (!session.CompleteContinuousSuture()) { Finish("Wound changed; treatment cancelled."); return; }
@@ -255,7 +260,12 @@ namespace CasualtiesSurgery.Game
                     }
                 }
                 else if (!(extraction ? gesture.Move(x, y) : suture.Move(x, y))) Slip();
-                if (extraction && gesture.Active) fragment.anchoredPosition=fragmentOrigin+Vector2.right*(gesture.Travel*woundLength);
+                if (extraction && gesture.Active)
+                {
+                    fragment.GetComponentInParent<Mask>().enabled=!gesture.Loose;
+                    if(gesture.Loose) fragment.position=host.handTransform.position+grabOffset;
+                    else fragment.anchoredPosition=fragmentOrigin+Vector2.right*(gesture.Travel*woundLength);
+                }
                 else if (!extraction && suture.Active) PreviewThread(new Vector2(local.x,local.y));
             }
             RefreshGuide();
@@ -293,9 +303,27 @@ namespace CasualtiesSurgery.Game
             return RectTransformUtility.RectangleContainsScreenPoint(windowBounds, Input.mousePosition,
                 canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera);
         }
+        void FadeShard()
+        {
+            fragment.position=host.handTransform.position+grabOffset;
+            fragment.GetComponentInParent<Mask>().enabled=false;
+            var copy=UnityEngine.Object.Instantiate(fragment.gameObject,field,true);
+            var image=copy.GetComponent<Image>(); image.raycastTarget=false;
+            fading.Add(new FadingShard {Image=image});
+        }
+        void UpdateFades()
+        {
+            for(int i=fading.Count-1;i>=0;i--)
+            {
+                var shard=fading[i]; shard.Age+=Time.unscaledDeltaTime;
+                if(shard.Image==null || shard.Age>=0.4f)
+                {if(shard.Image!=null)UnityEngine.Object.Destroy(shard.Image.gameObject);fading.RemoveAt(i);continue;}
+                var color=shard.Image.color;color.a=1-shard.Age/0.4f;shard.Image.color=color;
+            }
+        }
         void ResetFragment()
         {
-            if (fragment != null) fragment.anchoredPosition=fragmentOrigin;
+            if (fragment != null) {fragment.anchoredPosition=fragmentOrigin;fragment.GetComponentInParent<Mask>().enabled=true;}
         }
         void ClearTrace()
         {
@@ -338,32 +366,21 @@ namespace CasualtiesSurgery.Game
             bool extraction = session.Procedure.Stage == FragmentStage.Extraction;
             gesture = new FragmentPull(2f,pullDistance/woundLength,0.005f);
             fragment.gameObject.SetActive(extraction); ResetFragment();
-            startMarker.GetComponent<Image>().enabled=!extraction;
-            startMarker.anchoredPosition = extraction ? new Vector2(gripPosition,65) : new Vector2(-woundWidth, woundLength*0.5f);
-            endMarker.anchoredPosition = extraction ? new Vector2(gripPosition+pullDistance,0) : new Vector2(0, -woundLength*0.5f);
-            path.gameObject.SetActive(extraction); path.anchoredPosition = new Vector2(gripPosition+pullDistance/2,0);
-            path.sizeDelta = new Vector2(pullDistance,woundWidth*0.72f);
-            startLabel.text = extraction ? "GRIP TOP" : "START";
-            if (!extraction)
-            {
-                // Faint example marks suggest the motion without requiring exact tracing.
-                for (int i = 0; i <= 6; i++)
-                    activeGuides.Add(Box("StitchGuide", wound, new Vector2(i%2 == 0 ? -woundWidth : woundWidth, woundLength*(0.5f-i/6f)),
-                        new Vector2(12,12), new Color(0.4f,0.7f,0.6f,0.5f)).gameObject);
-            }
+            // Gameplay feedback comes from the shard, thread and score, not debug targets.
+            startMarker.gameObject.SetActive(false); endMarker.gameObject.SetActive(false); path.gameObject.SetActive(false);
         }
         public void RefreshGuide()
         {
             if (Ended || heading == null) return;
             bool extraction = session.Procedure.Stage == FragmentStage.Extraction;
-            heading.text = patientLimb.fullName+" / "+board.Remaining+" wounds / page "+(page+1)+" (PgUp/PgDn)" + (extraction ? " / EXTRACT FRAGMENT" : " / CONTINUOUS SUTURE");
-            status.text = message;
-            host.guideText.text = "Hold " + wheelKey + " inside for tools. Right-click outside to exit. " + (forceps ? "Grip the exposed tip and pull across the cut. Click another wound to select." : "Zigzag in one stroke. Failed sutures have no cost.");
+            heading.text = patientLimb.fullName+" · "+board.Remaining+" wounds"+ (board.NextId>12 ? " · page "+(page+1)+" (PgUp/PgDn)" : "");
+            host.guideText.text = "Hold " + wheelKey + " inside for tools. Right-click outside to exit. " + (forceps ? "Pull until loose, then release." : "Cross the wound three times, then release.");
         }
         public void Finish(string reason)
         {
             if (Ended) return;
             log(reason);
+            log(message);
             OnEnded();
             if (host != null && ReferenceEquals(host.currentMinigame, this)) host.EndMinigame();
         }

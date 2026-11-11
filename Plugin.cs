@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 
 namespace CasualtiesSurgery
 {
-    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.8.1")]
+    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.9.0")]
     [BepInDependency("net.cucorelib", "1.1")]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -36,7 +36,7 @@ namespace CasualtiesSurgery
             wheelKey = Config.Bind("Interface", "ToolWheelKey", KeyCode.Mouse1, "Hold to choose a tool at the cursor; release to select.");
             viewScale = Config.Bind("Interface", "SurgeryScale", 0.4f,
                 new ConfigDescription("Wound assets, radial menu and hand scale. The native window stays full size.", new AcceptableValueRange<float>(0.3f, 0.8f)));
-            handScale=Config.Bind("Interface","HandScale",0.22f,
+            handScale=Config.Bind("Interface","HandScale",0.33f,
                 new ConfigDescription("Hand size independent of wound and wheel scale.",new AcceptableValueRange<float>(0.1f,0.4f)));
             CUCoreLib.Registries.SaveRegistry.RegisterLimbProvider("local.casualties.surgery.fragment-board",new FragmentBoardStore());
             recovery = Config.Bind("Treatment", "SkinRecovery", 5f,
@@ -53,7 +53,7 @@ namespace CasualtiesSurgery
             }
             healthMenu = new HealthMenu(BeginFromHealth, () => releaseFrame = Time.frameCount + 1);
             SceneManager.activeSceneChanged += SceneChanged;
-            Logger.LogInfo("Casualty Center 0.8.1 loaded. Health-dummy surgery uses the native minigame system.");
+            Logger.LogInfo("Casualty Center 0.9.0 loaded. Health-dummy surgery uses the native minigame system.");
         }
         void BeginFromHealth(WoundView source, Limb limb)
         {

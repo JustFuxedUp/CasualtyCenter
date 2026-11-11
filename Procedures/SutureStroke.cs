@@ -2,79 +2,77 @@ using System;
 using System.Collections.Generic;
 namespace CasualtiesSurgery.Procedures
 {
-    // Wound coordinates: x crosses its width (-1..1); y progresses along it (0..1).
+    // The wound is x=0, y=0..1. Start/end are unrestricted; only crossings over the wound count.
     public sealed class SutureStroke
     {
         readonly float grace;
         public event Action<float,float> TurnCommitted;
-        public SutureStroke(float grace = 1f) { this.grace = grace; }
-        float SideThreshold => Math.Max(0.2f, 1f - 0.35f*grace);
-        float WidthLimit => 1f + 0.9f*grace;
-        readonly List<float> gaps = new List<float>();
-        readonly List<float> angles = new List<float>();
-        float previousX, previousY, lastTurnX, lastTurnY, distance, direct, furthest;
-        int side;
-        bool reachedSide;
-        float peakX, peakY;
+        public SutureStroke(float grace=1f) { this.grace=grace; }
+        float Threshold => Math.Max(0.2f,1f-0.35f*grace);
+        readonly List<float> gaps=new List<float>(), angles=new List<float>();
+        float px,py,turnX,turnY,peakX,peakY,distance,direct;
+        int side,direction;
+        bool pendingCross;
         public bool Active { get; private set; }
-        public int Crossings => gaps.Count;
-        public bool Begin(float x, float y)
+        public int Crossings { get; private set; }
+        public bool Begin(float x,float y)
         {
-            Reset();
-            if (!Finite(x) || !Finite(y) || x > -SideThreshold || x < -WidthLimit || y < -0.12f*grace || y > 0.12f*grace) return false;
-            previousX = lastTurnX = x; previousY = lastTurnY = furthest = y;
-            side = -1; Active = true; return true;
+            Reset(); if(!Finite(x)||!Finite(y)) return false;
+            px=peakX=turnX=x; py=peakY=turnY=y;
+            side=Side(x); Active=true; return true;
         }
-        public bool Move(float x, float y)
+        public bool Move(float x,float y)
         {
-            if (!Active) return false;
-            if (!Finite(x) || !Finite(y) || Math.Abs(x) > WidthLimit || y < -0.12f*grace || y > 1f+0.12f*grace || y < furthest - 0.12f*grace)
-            { Active = false; return false; }
-            distance += Distance(previousX, previousY, x, y);
-            previousX = x; previousY = y; furthest = Math.Max(furthest, y);
-            // Commit a turn at its outermost point, not at the first sample that
-            // crosses a threshold. This keeps scoring stable across frame rates.
-            if (reachedSide && ((side < 0 && x < peakX - 0.08f*grace) || (side > 0 && x > peakX + 0.08f*grace)))
-                if (!CommitTurn()) return false;
-            if ((side < 0 && x >= SideThreshold) || (side > 0 && x <= -SideThreshold))
+            if(!Active) return false;
+            if(!Finite(x)||!Finite(y)) { Active=false; return false; }
+            distance+=Distance(px,py,x,y);
+            if((px<0 && x>=0)||(px>0 && x<=0))
             {
-                if (!reachedSide || (side < 0 ? x >= peakX : x <= peakX)) { peakX = x; peakY = y; }
-                reachedSide = true;
+                float t=-px/(x-px), crossY=py+(y-py)*t;
+                pendingCross=crossY>=-0.12f*grace && crossY<=1f+0.12f*grace;
             }
-            return true;
+            int next=Side(x);
+            if(next!=0 && next!=side)
+            {
+                if(side!=0 && pendingCross) Crossings++;
+                side=next; pendingCross=false;
+            }
+            // Use outer turns for the visible straight thread, with hysteresis against hand jitter.
+            if(direction==0 && Math.Abs(x-peakX)>0.001f) direction=x>peakX?1:-1;
+            if((direction>0 && x<peakX-0.08f*grace)||(direction<0 && x>peakX+0.08f*grace))
+            { Commit(peakX,peakY); direction=-direction; peakX=x; peakY=y; }
+            else if((direction>0 && x>=peakX)||(direction<0 && x<=peakX)) {peakX=x;peakY=y;}
+            px=x;py=y;return true;
         }
-        public bool End(float x, float y, out int quality)
+        public bool End(float x,float y,out int quality)
         {
-            quality = 0;
-            bool valid = Move(x, y);
-            if (valid && reachedSide) valid = CommitTurn();
-            Active = false;
-            if (!valid || gaps.Count < 4 || y < 1f-0.1f*grace || Math.Abs(x) < SideThreshold || lastTurnY < 1f-0.1f*grace) return false;
-            float efficiency = Math.Min(1, direct / Math.Max(distance, 0.0001f));
-            float mean = 0; foreach (float gap in gaps) mean += gap; mean /= gaps.Count;
-            float variance = 0; foreach (float gap in gaps) variance += (gap - mean) * (gap - mean);
-            float variation = (float)Math.Sqrt(variance / gaps.Count) / Math.Max(mean, 0.001f);
-            float meanAngle = 0; foreach (float angle in angles) meanAngle += angle; meanAngle /= angles.Count;
-            float angleVariance = 0; foreach (float angle in angles) angleVariance += (angle-meanAngle)*(angle-meanAngle);
-            float angleVariation = (float)Math.Sqrt(angleVariance/angles.Count) / Math.Max(meanAngle,0.001f);
-            float consistency = Math.Max(0, 1 - (variation + angleVariation)*0.5f);
-            quality = (int)Math.Round(100 * (0.6f * consistency + 0.4f * efficiency));
-            return efficiency >= 0.45f && quality >= 35;
+            quality=0;
+            bool valid=Move(x,y); Active=false;
+            if(!valid || Crossings<3) return false;
+            Commit(x,y);
+            float efficiency=Math.Min(1,direct/Math.Max(distance,0.0001f));
+            float consistency=Math.Max(0,1-(Variation(gaps)+Variation(angles))*0.5f);
+            quality=(int)Math.Round(100*(0.6f*consistency+0.4f*efficiency));
+            return true; // Quality is feedback, never an extra completion gate.
         }
-        bool CommitTurn()
+        void Commit(float x,float y)
         {
-            float progress = peakY - lastTurnY;
-            if (progress < 0.045f/grace || gaps.Count >= 10) { Active = false; return false; }
-            gaps.Add(progress);
-            angles.Add((float)Math.Atan2(Math.Abs(peakX-lastTurnX)*0.15f, progress));
-            direct += Distance(lastTurnX, lastTurnY, peakX, peakY);
-            lastTurnX = peakX; lastTurnY = peakY; side = -side; reachedSide = false;
-            TurnCommitted?.Invoke(peakX,peakY);
-            return true;
+            float length=Distance(turnX,turnY,x,y); if(length<0.00001f) return;
+            float gap=Math.Abs(y-turnY); gaps.Add(gap);
+            angles.Add((float)Math.Atan2(Math.Abs(x-turnX)*0.15f,gap));
+            direct+=length; turnX=x;turnY=y;TurnCommitted?.Invoke(x,y);
         }
-        public void Reset() { Active = false; reachedSide = false; gaps.Clear(); angles.Clear(); distance = direct = 0; }
-        static bool Finite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);
-        static float Distance(float x, float y, float a, float b)
-            => (float)Math.Sqrt((x-a)*(x-a)*0.0225f + (y-b)*(y-b));
+        static float Variation(List<float> values)
+        {
+            if(values.Count==0) return 0;
+            float mean=0;foreach(float v in values)mean+=v;mean/=values.Count;
+            if(mean<0.0001f) return 0;
+            float sum=0;foreach(float v in values)sum+=(v-mean)*(v-mean);
+            return (float)Math.Sqrt(sum/values.Count)/mean;
+        }
+        public void Reset() {Active=false;Crossings=0;side=direction=0;pendingCross=false;distance=direct=0;gaps.Clear();angles.Clear();}
+        int Side(float x)=>x>=Threshold?1:x<=-Threshold?-1:0;
+        static bool Finite(float v)=>!float.IsNaN(v)&&!float.IsInfinity(v)&&Math.Abs(v)<100000;
+        static float Distance(float x,float y,float a,float b)=>(float)Math.Sqrt((x-a)*(x-a)*0.0225f+(y-b)*(y-b));
     }
 }

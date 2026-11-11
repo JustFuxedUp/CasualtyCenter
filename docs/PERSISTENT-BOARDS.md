@@ -1,5 +1,8 @@
 # 0.8.0: persistent per-limb fragment boards
 
+For 0.9.0 scattered layouts and the one-time grid-save migration, see
+[current gameplay notes](GAMEPLAY-FLOW.md).
+
 ## Player changes
 
 - Suture outer width increased from 2.2 to 2.8 wound half-widths. Coverage and
