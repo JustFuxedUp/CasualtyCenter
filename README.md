@@ -2,7 +2,7 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.8.0 persistent fragment boards
+## Current build: 0.8.1 persistent fragment boards
 
 Open the normal health screen, right-click a limb on the dummy, and select
 **Extract fragment + suture**. The game's native minigame screen and hand open.
@@ -19,6 +19,7 @@ This playtest uses free tools: crafting, supplies and multiplayer surgery are
 not implemented. The world keeps running while the panel is open. The native minigame handles procedure input and exits; the health context menu
 blocks background player input while it is open.
 
+- [Hand-scale fix and larger fragments](docs/VISUAL-SCALE-FIX.md)
 - [Current board controls, persistence and playtest](docs/PERSISTENT-BOARDS.md)
 - [Previous changes, controls and playtest](docs/SURGERY-GRACE.md)
 - [Previous controls, scoring and playtest](docs/COMPACT-SURGERY.md)

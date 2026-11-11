@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 
 namespace CasualtiesSurgery
 {
-    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.8.0")]
+    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.8.1")]
     [BepInDependency("net.cucorelib", "1.1")]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -53,7 +53,7 @@ namespace CasualtiesSurgery
             }
             healthMenu = new HealthMenu(BeginFromHealth, () => releaseFrame = Time.frameCount + 1);
             SceneManager.activeSceneChanged += SceneChanged;
-            Logger.LogInfo("Casualty Center 0.8.0 loaded. Health-dummy surgery uses the native minigame system.");
+            Logger.LogInfo("Casualty Center 0.8.1 loaded. Health-dummy surgery uses the native minigame system.");
         }
         void BeginFromHealth(WoundView source, Limb limb)
         {

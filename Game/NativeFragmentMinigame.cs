@@ -64,6 +64,7 @@ namespace CasualtiesSurgery.Game
             patientLimb=limb; this.recovery=recovery; this.reduction=reduction; this.handScale=handScale;
             board=FragmentBoardStore.Get(limb);
         }
+        public float HandScale => handScale;
         public override HandSpriteType HandType() => forceps ? HandSpriteType.Tweezers : HandSpriteType.Point;
         // The host looks up this existing key once at startup; RefreshGuide then supplies our stage instructions.
         public override string GuideLocaleString() => "shrapnelMinigameGuide";
@@ -73,7 +74,8 @@ namespace CasualtiesSurgery.Game
         public override void Start()
         {
             originalHandScale = host.handTransform.localScale;
-            host.handTransform.localScale = originalHandScale * handScale; scaleApplied = true;
+            // UpdateHandSprite rewrites scale every frame; the scoped postfix applies our factor.
+            scaleApplied = true;
             fade = host.handTransform.gameObject.AddComponent<WristFade>();
             var go = new GameObject("CasualtyCenterFragmentMinigame", typeof(RectTransform));
             root = (RectTransform)go.transform;
@@ -120,13 +122,15 @@ namespace CasualtiesSurgery.Game
                 var shardRect=shard.rectTransform;
                 // Anchor to the mask's left edge so the concealed base stays at the cut.
                 shardRect.anchorMin=shardRect.anchorMax=new Vector2(0,0.5f);
-                float shardLength=layout.Length*0.38f;
-                shardRect.sizeDelta=nativeShard.rect.size*(shardLength/nativeShard.rect.height);
+                float shardLength=layout.Length*0.76f;
+                Vector2 shardSize=nativeShard.rect.size*(shardLength/nativeShard.rect.height);
+                shardSize.x*=1.25f; // Broader silhouette; the long axis stays perpendicular to the cut.
+                shardRect.sizeDelta=shardSize;
                 shardRect.localEulerAngles=new Vector3(0,0,-90);
-                var origin=new Vector2(25-17.5f,0); shardRect.anchoredPosition=origin;
+                var origin=new Vector2(shardLength*0.3f,0); shardRect.anchoredPosition=origin;
                 var label=Text("SiteLabel",field,new Vector2(layout.X,layout.Y-layout.Length*viewScale/2-18),new Vector2(210,28),14);
                 view.Wound=art; view.Fragment=shardRect; view.Mask=mask; view.FragmentOrigin=origin;
-                view.Grip=25+shardLength*0.32f; view.Pull=shardLength/2-25+17.5f+8; view.Label=label;
+                view.Grip=17.5f+shardLength*0.62f; view.Pull=shardLength*0.2f+8; view.Label=label;
         }
         void SelectFirst()
         {
@@ -390,6 +394,20 @@ namespace CasualtiesSurgery.Game
             var text = go.GetComponent<TextMeshProUGUI>(); text.font = host.guideText.font;
             text.fontSize = fontSize; text.color = Color.white; text.alignment = TextAlignmentOptions.Center;
             text.enableWordWrapping = true; text.raycastTarget = false; return text;
+        }
+    }
+
+    [HarmonyPatch(typeof(MinigameBase), nameof(MinigameBase.UpdateHandSprite))]
+    internal static class SurgeryHandScale
+    {
+        static void Postfix(MinigameBase __instance)
+        {
+            if (__instance.currentMinigame is NativeFragmentMinigame surgery && !surgery.Ended)
+            {
+                // Native code just set (+/-1,1,1). Scale its result, preserving the hand-slot mirror.
+                // It resets on every call, so this multiplication cannot compound across frames.
+                __instance.handTransform.localScale *= surgery.HandScale;
+            }
         }
     }
 
