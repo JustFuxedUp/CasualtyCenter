@@ -2,12 +2,14 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.11.0 scalpel and fracture surgery
+## Current build: 0.11.1 surgery refinements
+
+See [current controls and refinement playtest](docs/SURGERY-REFINEMENTS.md).
 
 Fractured limbs now offer **Open / align fracture / close** from the health dummy.
 Use the scalpel to touch incision markers, forceps to rotate two bone pieces into
 alignment, then suture the incision. Partial operations persist across saves.
-Off-target scalpel use damages tissue after 0.2 seconds. Successful closure
+Off-target scalpel use damages tissue after 0.4 seconds. Successful closure
 restores recorded incision skin cost according to quality and cuts the remaining
 fracture timer to 25% without completing natural healing. Art remains provisional.
 See the [fracture controls, balance and acceptance checklist](docs/FRACTURE-MVP.md).

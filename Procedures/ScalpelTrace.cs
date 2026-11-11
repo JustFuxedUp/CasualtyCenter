@@ -10,7 +10,7 @@ namespace CasualtiesSurgery.Procedures
             if(!active){idle=0;previous=false;return 0;}
             if(productive){idle=0;return 0;}
             float before=idle;idle+=Math.Max(0,dt);
-            return Math.Max(0,idle-.2f)-Math.Max(0,before-.2f);
+            return Math.Max(0,idle-.4f)-Math.Max(0,before-.4f);
         }
         public bool Touch(float x,float y,float tx,float ty,float radius)
         {

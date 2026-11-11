@@ -41,12 +41,37 @@ namespace CasualtiesSurgery.Game
                         hook.Menu = this; hook.Native = native; hooks.Add(hook);
                     }
             }
+            UpdateMarkers();
             if (!IsOpen) return;
             if (view == null || !view.gameObject.activeInHierarchy || view.body != patient)
             { Close(); return; }
             Refresh();
         }
 
+        void UpdateMarkers()
+        {
+            if(view==null)return;
+            foreach(var hook in hooks)
+            {
+                if(hook==null || hook.Native==null)continue;
+                int index=hook.Native.limb;
+                var selected=view.body!=null && view.body.limbs!=null && index>=0 && index<view.body.limbs.Length?view.body.limbs[index]:null;
+                bool incision=FractureStore.HasOpen(selected),pending=FragmentBoardStore.HasPendingSuture(selected);
+                if(hook.Marker==null && (incision||pending))
+                {
+                    hook.Marker=Text("OpenSurgeryMarker",view.transform,Vector2.zero,new Vector2(64,20),12);
+                    hook.Marker.rectTransform.pivot=new Vector2(.5f,.5f);hook.Marker.alignment=TextAlignmentOptions.Center;
+                    hook.Marker.color=new Color(1,.65f,.15f);hook.Marker.outlineWidth=.2f;hook.Marker.outlineColor=Color.black;
+                }
+                if(hook.Marker==null)continue;
+                hook.Marker.gameObject.SetActive((incision||pending) && view.gameObject.activeInHierarchy && hook.Native.gameObject.activeInHierarchy);
+                hook.Marker.text=incision?"[OPEN]":"[SUTURE]";
+                var rect=hook.Native.transform as RectTransform;
+                hook.Marker.rectTransform.position=rect!=null?rect.TransformPoint(rect.rect.center):hook.Native.transform.position;
+                hook.Marker.transform.SetAsLastSibling();
+            }
+            if(IsOpen)overlay.transform.SetAsLastSibling();
+        }
         public void Open(WoundViewLimb target, PointerEventData pointer)
         {
             if (Plugin.OperationVisible || view == null || !view.gameObject.activeInHierarchy || target.woundview != view) return;
@@ -117,10 +142,11 @@ namespace CasualtiesSurgery.Game
         void Refresh()
         {
             string unavailable = OperationSession.Ineligible(patient, limb);
-            title.text = "SURGERY / " + (limb != null ? limb.fullName : "No limb");
+            title.text = "SURGERY / " + (limb != null ? limb.fullName : "No limb")+(FractureStore.HasOpen(limb)?" / OPEN":"");
             procedure.interactable = unavailable == null;
             string fractureReason=FractureStore.Ineligible(patient,limb);
             fracture.interactable=fractureReason==null;
+            fracture.GetComponentInChildren<TextMeshProUGUI>().text=FractureStore.HasOpen(limb)?"Resume open surgery":"Open / align fracture / close";
             reason.text=unavailable==null || fractureReason==null ? "Free test tools. World stays live." : fractureReason;
         }
         void Start()
@@ -147,7 +173,7 @@ namespace CasualtiesSurgery.Game
         {
             Close();
             foreach (var hook in hooks)
-                if (hook != null) { hook.Menu = null; UnityEngine.Object.Destroy(hook); }
+                if (hook != null) { if(hook.Marker!=null)UnityEngine.Object.Destroy(hook.Marker.gameObject);hook.Menu = null; UnityEngine.Object.Destroy(hook); }
             hooks.Clear();
             if (overlay != null) UnityEngine.Object.Destroy(overlay);
             overlay = null; view = null;
@@ -168,6 +194,7 @@ namespace CasualtiesSurgery.Game
     {
         internal HealthMenu Menu;
         internal WoundViewLimb Native;
+        internal TextMeshProUGUI Marker;
         public void OnPointerClick(PointerEventData data)
         {
             if (data.button == PointerEventData.InputButton.Right && Menu != null && Native != null)

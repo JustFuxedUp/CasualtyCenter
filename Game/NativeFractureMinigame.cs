@@ -45,20 +45,23 @@ namespace CasualtiesSurgery.Game
             if(displayed==FractureStage.Incision)
             {
                 Box("IncisionGuide",field,Vector2.zero,new Vector2(5,240),new Color(.3f,.18f,.22f));
-                for(int i=0;i<9;i++){var dot=Box("CutDot",field,new Vector2(0,120-i*30),new Vector2(16,16),state.Cuts[i]?new Color(.5f,.1f,.12f):new Color(.9f,.65f,.15f));dots.Add(dot);}
+                for(int i=0;i<9;i++){var dot=Box("CutDot",field,new Vector2(0,120-i*30),new Vector2(16,16),new Color(.9f,.65f,.15f));dot.gameObject.SetActive(!state.Cuts[i]);dots.Add(dot);}
             }
             else if(displayed==FractureStage.Alignment)
             {
-                Box("OpenIncision",field,Vector2.zero,new Vector2(250,300),new Color(.25f,.06f,.09f));
+                Box("OpenIncision",field,Vector2.zero,new Vector2(300,410),new Color(.25f,.06f,.09f));
                 for(int i=0;i<2;i++)
                 {
-                    Vector2 pos=new Vector2(i==0?-90:90,0);
-                    Box("AlignmentTarget",field,pos,new Vector2(18,180),new Color(.25f,.45f,.65f,.6f));
+                    Vector2 pos=new Vector2(0,i==0?-180:180);
+                    var target=Box("AlignmentTarget",field,pos,new Vector2(18,180),new Color(.25f,.45f,.65f,.6f)).rectTransform;
+                    target.pivot=new Vector2(.5f,i==0?0:1);
                     var bone=Box("BonePiece",field,pos,new Vector2(24,180),new Color(.88f,.84f,.7f)).rectTransform;
+                    bone.pivot=new Vector2(.5f,i==0?0:1);
                     bone.localEulerAngles=new Vector3(0,0,state.Angles[i]);bones.Add(bone);
                 }
             }
             else Box("ClosureWound",field,Vector2.zero,new Vector2(14,180),new Color(.48f,.09f,.12f));
+            trace.SetAsLastSibling();Plugin.Feedback?.Cutting(this,false);
             ready=false;rotating=-1;suture.Reset();scalpel.Reset();host.ForceUngrab();
         }
         public string InvalidReason()
@@ -76,9 +79,10 @@ namespace CasualtiesSurgery.Game
             if(!limb.broken && state.Started && state.Stage==FractureStage.Alignment){state.Stage=FractureStage.Closure;BuildStage();}
             if(!wheelOpen && Input.GetMouseButtonDown(1) && !Inside()){Finish("Surgery closed; incision saved.");return;}
             if(BlocksToolInput && Input.GetKeyDown(KeyBinds.GetBind("pause"))){Finish("Surgery cancelled.");return;}
-            if(Wheel()){RefreshGuide();return;}
-            if(!ready){if(!host.handClicking)ready=true;RefreshGuide();return;}
+            if(Wheel()){Plugin.Feedback?.Cutting(this,false);RefreshGuide();return;}
+            if(!ready){Plugin.Feedback?.Cutting(this,false);if(!host.handClicking)ready=true;RefreshGuide();return;}
             Vector3 p=field.InverseTransformPoint(host.handTransform.position);
+            Plugin.Feedback?.Cutting(this,Tool==SurgeryTool.Scalpel && host.handClicking && Time.timeScale>0);
             if(Tool==SurgeryTool.Scalpel)Cut(p);else scalpel.Reset();
             if(Tool==SurgeryTool.Forceps && state.Stage==FractureStage.Alignment)Rotate(p);
             if(Tool==SurgeryTool.Suture && state.Stage==FractureStage.Closure)Close(p);
@@ -90,8 +94,8 @@ namespace CasualtiesSurgery.Game
             if(host.handClicking && state.Stage==FractureStage.Incision)
             {
                 for(int i=0;i<9;i++)if(!state.Cuts[i] && scalpel.Touch(p.x,p.y,0,120-i*30,14))
-                {limb.skinHealth-=state.Cut(i,limb.skinHealth);dots[i].color=new Color(.5f,.1f,.12f);productive=true;}
-                if(productive)Plugin.Feedback?.Cut();
+                {limb.skinHealth-=state.Cut(i,limb.skinHealth);dots[i].gameObject.SetActive(false);productive=true;}
+
                 if(state.Stage==FractureStage.Alignment)Result(state.CutScore);
             }
             float damage=scalpel.Step(host.handClicking,productive,Time.deltaTime);
@@ -105,7 +109,7 @@ namespace CasualtiesSurgery.Game
                 for(int i=0;i<bones.Count;i++)if(!state.Aligned[i])
                 {
                     Vector3 local=bones[i].InverseTransformPoint(host.handTransform.position);
-                    if(Mathf.Abs(local.x)>26 || Mathf.Abs(local.y)>100)continue;
+                    if(Mathf.Abs(local.x)>26 || local.y<(i==0?-12:-192) || local.y>(i==0?192:12))continue;
                     rotating=i;Vector2 d=p-bones[i].anchoredPosition;startPointer=Mathf.Atan2(d.y,d.x)*Mathf.Rad2Deg;startAngle=state.Angles[i];Plugin.Feedback?.Grab();break;
                 }
             if(rotating<0)return;
@@ -126,7 +130,7 @@ namespace CasualtiesSurgery.Game
             if(!suture.Active)return;
             if(host.handStoppedClicking)
             {
-                if(!suture.End(x,y,out int score)){ClearTrace();Plugin.Feedback?.Mistake();return;}
+                if(!suture.End(x,y,out int score)){log("Fracture suture rejected on "+limb.fullName+"; crossings="+suture.Crossings+"; stage="+state.Stage);ClearTrace();Plugin.Feedback?.Mistake();return;}
                 if(!FractureStore.TryClose(limb,score,this)){Finish("Patient changed before closure.");return;}
                 Result(score);Finish("Fracture operation closed; natural bone healing continues.");
             }
@@ -169,7 +173,7 @@ namespace CasualtiesSurgery.Game
         public void Finish(string reason){if(Ended)return;log(reason);OnEnded();if(host!=null && ReferenceEquals(host.currentMinigame,this))host.EndMinigame();}
         public void OnEnded()
         {
-            if(Ended)return;Ended=true;Plugin.ProtectExitClick();scalpel.Reset();suture.Reset();
+            if(Ended)return;Ended=true;Plugin.Feedback?.Cutting(this,false);Plugin.ProtectExitClick();scalpel.Reset();suture.Reset();
             if(fade!=null){fade.enabled=false;UnityEngine.Object.Destroy(fade);}if(host!=null)host.handTransform.localScale=originalScale;
             if(root!=null && (host==null || !ReferenceEquals(host.currentMinigame,this))){root.gameObject.SetActive(false);UnityEngine.Object.Destroy(root.gameObject);}
         }

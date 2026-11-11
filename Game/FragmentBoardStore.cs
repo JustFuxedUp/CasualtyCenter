@@ -8,6 +8,7 @@ namespace CasualtiesSurgery.Game
     internal sealed class FragmentBoardStore : ILimbSaveProvider
     {
         static readonly ConditionalWeakTable<Limb,FragmentBoard> boards=new ConditionalWeakTable<Limb,FragmentBoard>();
+        public static bool HasPendingSuture(Limb limb)=>limb!=null && boards.TryGetValue(limb,out var b) && b.Sites.Exists(s=>s.Extracted && !s.Completed);
         public static FragmentBoard Get(Limb limb)
         {
             var board=boards.GetValue(limb, key=>new FragmentBoard(Guid.NewGuid().GetHashCode(),key.shrapnel));

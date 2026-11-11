@@ -11,6 +11,7 @@ namespace CasualtiesSurgery.Game
     {
         static readonly ConditionalWeakTable<Limb,FractureState> states=new ConditionalWeakTable<Limb,FractureState>();
         public static FractureState Get(Limb limb)=>states.GetValue(limb,l=>new FractureState());
+        public static bool HasOpen(Limb limb)=>limb!=null && states.TryGetValue(limb,out var s) && s.Started && s.Stage!=FractureStage.Complete;
         public static void NewBreak(Limb limb)
         {
             // Never discard an open incision, even if a heal command is followed by another injury.
