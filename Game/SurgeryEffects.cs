@@ -7,21 +7,35 @@ namespace CasualtiesSurgery.Game
 {
     internal static class SurgeryContact
     {
-        public static Vector3 Point(MinigameBase host,SurgeryTool tool)
+        // Native hand physics remain the sole interaction point for every tool.
+        public static Vector3 Point(MinigameBase host,SurgeryTool tool)=>host.handTransform.position;
+    }
+    // Applied after WristFade: move rendered vertices, never the physics/input transform.
+    public sealed class KnifeTipVisual : BaseMeshEffect
+    {
+        public override void ModifyMesh(VertexHelper mesh)
         {
-            if(tool!=SurgeryTool.Scalpel)return host.handTransform.position;
-            var rect=host.handTransform.rect;
-            var image=host.handTransform.GetComponent<Image>();
-            if(image!=null && image.preserveAspect && image.sprite!=null)
+            if(!IsActive() || Plugin.SelectedTool!=SurgeryTool.Scalpel ||
+                !(MinigameBase.main?.currentMinigame is ISurgery surgery) || surgery.Ended)return;
+            var image=graphic as Image;
+            if(image==null || image.sprite==null || !image.sprite.name.StartsWith("handSharp"))return;
+            var rect=image.GetPixelAdjustedRect();
+            if(image.preserveAspect)
             {
                 float ratio=image.sprite.rect.width/image.sprite.rect.height;
-                if(rect.width/rect.height>ratio){float width=rect.height*ratio;rect.x+=(rect.width-width)*host.handTransform.pivot.x;rect.width=width;}
-                else {float height=rect.width/ratio;rect.y+=(rect.height-height)*host.handTransform.pivot.y;rect.height=height;}
+                if(rect.width/rect.height>ratio){float width=rect.height*ratio;rect.x+=(rect.width-width)*image.rectTransform.pivot.x;rect.width=width;}
+                else {float height=rect.width/ratio;rect.y+=(rect.height-height)*image.rectTransform.pivot.y;rect.height=height;}
             }
-            // Inspected handSharp/handSharpalt (256 x 630): visible blade tip at x~60, top edge.
-            return host.handTransform.TransformPoint(new Vector3(rect.xMin+rect.width*(60f/256),rect.yMax-rect.height*.005f,0));
+            // Annotated image: 210 x 630, red marker centered at (62,1) from top left.
+            // Native sprite: 256 x 630; exported texture has a 31.07612 px left trim.
+            const float tipU=(31.07612f+209.88097f*(62f/210f))/256f;
+            const float tipV=1f-1f/630f;
+            Vector3 offset=new Vector3(rect.xMin+rect.width*tipU,rect.yMin+rect.height*tipV,0);
+            var vertex=new UIVertex();
+            for(int i=0;i<mesh.currentVertCount;i++){mesh.PopulateUIVertex(ref vertex,i);vertex.position-=offset;mesh.SetUIVertex(vertex,i);}
         }
     }
+
     internal sealed class SurgeryEffects
     {
         sealed class Mark {public Image Image;public float Age,Life,Alpha;}

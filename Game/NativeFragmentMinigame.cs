@@ -37,6 +37,7 @@ namespace CasualtiesSurgery.Game
         RectTransform wound, strokeRoot, wheel;
         ToolWheelGraphic wheelGraphic;
         WristFade fade;
+        KnifeTipVisual knifeVisual;
         Vector3 originalHandScale;
         RectTransform windowBounds, fragment, previewLine;
         Vector2 fragmentOrigin;
@@ -84,6 +85,7 @@ namespace CasualtiesSurgery.Game
             // UpdateHandSprite rewrites scale every frame; the scoped postfix applies our factor.
             scaleApplied = true;
             fade = host.handTransform.gameObject.AddComponent<WristFade>();
+            knifeVisual=host.handTransform.gameObject.AddComponent<KnifeTipVisual>();
             var go = new GameObject("CasualtyCenterFragmentMinigame", typeof(RectTransform));
             root = (RectTransform)go.transform;
             root.SetParent(host.minigameScreen, false);
@@ -514,6 +516,7 @@ namespace CasualtiesSurgery.Game
         {
             if (Ended) return;
             Ended = true; Plugin.Feedback?.Cutting(this,false);sutureTargets.Clear();boardDirection=Vector2.zero;Plugin.ProtectExitClick(); gesture?.Reset(); suture.Reset(); session?.Cancel();
+            if(knifeVisual!=null){knifeVisual.enabled=false;UnityEngine.Object.Destroy(knifeVisual);}
             if (fade != null) { fade.enabled = false; UnityEngine.Object.Destroy(fade); }
             if (host != null && host.handTransform != null && scaleApplied) { host.handTransform.localScale = originalHandScale; scaleApplied = false; }
             // EndMinigame owns destruction normally. Also clean our root if the host was replaced.
@@ -550,6 +553,7 @@ namespace CasualtiesSurgery.Game
                 // Native code just set (+/-1,1,1). Scale its result, preserving the hand-slot mirror.
                 // It resets on every call, so this multiplication cannot compound across frames.
                 __instance.handTransform.localScale *= surgery.HandScale;
+                __instance.handTransform.GetComponent<Image>()?.SetVerticesDirty();
             }
         }
     }

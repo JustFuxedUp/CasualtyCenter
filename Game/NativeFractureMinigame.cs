@@ -17,7 +17,7 @@ namespace CasualtiesSurgery.Game
         RectTransform root,field,wheel,trace,preview;ToolWheelGraphic wheelGraphic;TextMeshProUGUI heading;
         readonly List<Image> dots=new List<Image>(),prep=new List<Image>();
         SurgeryEffects effects;readonly List<RectTransform> bones=new List<RectTransform>();
-        WristFade fade;Vector3 originalScale;Vector2 wheelOrigin,frozen,lastThread;
+        WristFade fade;KnifeTipVisual knifeVisual;Vector3 originalScale;Vector2 wheelOrigin,frozen,lastThread;
         bool wheelOpen,ready;int rotating=-1;float startPointer,startAngle,mistakeSound;FractureStage displayed;
         public bool Ended {get;private set;} public float HandScale=>handScale;
         public bool BlocksToolInput=>!Ended&&(wheelOpen||Input.GetKey(wheelKey)||Input.GetKeyUp(wheelKey)||Input.GetMouseButton(1)||Input.GetMouseButtonUp(1));
@@ -29,7 +29,7 @@ namespace CasualtiesSurgery.Game
         public override bool NeedsItem()=>false;
         public override void Start()
         {
-            originalScale=host.handTransform.localScale;fade=host.handTransform.gameObject.AddComponent<WristFade>();
+            originalScale=host.handTransform.localScale;fade=host.handTransform.gameObject.AddComponent<WristFade>();knifeVisual=host.handTransform.gameObject.AddComponent<KnifeTipVisual>();
             root=Box("FractureSurgery",host.minigameScreen,Vector2.zero,new Vector2(1000,1000),new Color(.025f,.05f,.11f)).rectTransform;
             root.SetSiblingIndex(0);host.spawnedMiniGame=root;
             heading=Text(root,new Vector2(0,440),new Vector2(940,80),24);
@@ -198,6 +198,7 @@ namespace CasualtiesSurgery.Game
         public void OnEnded()
         {
             if(Ended)return;Ended=true;Plugin.Feedback?.Cutting(this,false);Plugin.ProtectExitClick();scalpel.Reset();suture.Reset();
+            if(knifeVisual!=null){knifeVisual.enabled=false;UnityEngine.Object.Destroy(knifeVisual);}
             if(fade!=null){fade.enabled=false;UnityEngine.Object.Destroy(fade);}if(host!=null)host.handTransform.localScale=originalScale;
             if(root!=null && (host==null || !ReferenceEquals(host.currentMinigame,this))){root.gameObject.SetActive(false);UnityEngine.Object.Destroy(root.gameObject);}
         }
