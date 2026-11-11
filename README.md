@@ -2,7 +2,7 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.10.0 direct interaction and feedback
+## Current build: 0.10.1 full-circle wounds and grab feedback
 
 Open the normal health screen, right-click a limb on the dummy, and select
 **Extract fragment + suture**. The game's native minigame screen and hand open.
@@ -19,7 +19,8 @@ This playtest uses free tools: crafting, supplies and multiplayer surgery are
 not implemented. The world keeps running while the panel is open. The native minigame handles procedure input and exits; the health context menu
 blocks background player input while it is open.
 
-- [Current interaction and audio feedback](docs/DIRECT-FEEDBACK.md)
+- [Art dimensions, rotation and visibility report](docs/ART-HANDOFF.md)
+- [Interaction and audio feedback](docs/DIRECT-FEEDBACK.md)
 - [Previous controls, scoring and save migration](docs/GAMEPLAY-FLOW.md)
 - [Hand-scale fix and larger fragments](docs/VISUAL-SCALE-FIX.md)
 - [Current board controls, persistence and playtest](docs/PERSISTENT-BOARDS.md)
@@ -56,7 +57,7 @@ assemblies during build. The small standalone rule-check runner targets .NET 10.
 Close the game first. Copy `lib/CUCoreLib/1.1/CUCoreLib.dll` into
 `BepInEx/plugins/CUCoreLib/`. Replace the existing surgery plugin with
 `bin/Release/net472/CasualtiesSurgery.dll` in `BepInEx/plugins/CasualtiesSurgery/`.
-For local sound feedback, copy the four placeholder WAVs into an `Audio/` folder beside the surgery DLL. Audio assets are not included in Git; missing sounds do not prevent play.
+For local sound feedback, copy the five placeholder WAVs into an `Audio/` folder beside the surgery DLL. Audio assets are not included in Git; missing sounds do not prevent play.
 Keep exactly one copy of each plugin DLL in the plugins tree.
 
 Set `HideManagerGameObject = true` in `BepInEx/config/BepInEx.cfg` and restart.

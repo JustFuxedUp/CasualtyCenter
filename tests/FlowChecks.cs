@@ -24,6 +24,18 @@ static class FlowChecks
         check(spaced,"Scattered centers remain at least 110 board units apart across 200 seeds");
         var original=new FragmentBoard(1234,3);var point=original.Layout(2);original.Reconcile(9);
         check(original.Layout(2).X==point.X&&original.Layout(2).Y==point.Y,"Adding fragments does not relocate scattered sites");
+        bool[] quadrants=new bool[4]; bool validAngles=true;
+        for(int seed=0;seed<100;seed++)for(int id=0;id<12;id++)
+        {
+            float angle=new FragmentBoard(seed,12).Layout(id).Angle;
+            if(angle<0 || angle>=360)validAngles=false;else quadrants[(int)(angle/90)]=true;
+        }
+        check(validAngles && Array.TrueForAll(quadrants,q=>q),"New wound rotations cover all four quadrants within 0-360");
+        var legacyScatter=new FragmentBoard(99,2){LayoutVersion=1};
+        var legacyAngle=legacyScatter.Layout(0).Angle;
+        var legacyLimb=new Limb {shrapnel=2};var legacyContext=new SaveRestoreContext();
+        new FragmentBoardStore().Restore(legacyLimb,0,JObject.FromObject(legacyScatter),1,legacyContext);legacyContext.Flush();
+        check(FragmentBoardStore.Get(legacyLimb).Layout(0).Angle==legacyAngle,"Existing scattered wound rotation survives restore");
         var old=new FragmentBoard(55,2){LayoutVersion=0};old.Sites[0].Extracted=true;
         var token=JObject.FromObject(old);token.Remove("LayoutVersion");
         var limb=new Limb {shrapnel=2};var context=new SaveRestoreContext();

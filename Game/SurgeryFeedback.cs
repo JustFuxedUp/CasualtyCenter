@@ -16,7 +16,7 @@ namespace CasualtiesSurgery.Game
         public void Initialize(string folder,float volume,Action<string> warn)
         {
             source=gameObject.AddComponent<AudioSource>();source.playOnAwake=false;source.spatialBlend=0;source.volume=volume;
-            foreach(string name in new[]{"Bad-Ok","Great","Mistake","SutureStitch"})
+            foreach(string name in new[]{"Bad-Ok","Great","Mistake","SutureStitch","ForcepsGrab"})
                 try
                 {
                     var wave=WaveData.Read(File.ReadAllBytes(Path.Combine(folder,name+".wav")));
@@ -26,6 +26,7 @@ namespace CasualtiesSurgery.Game
                 catch(Exception error) {warn("Could not load surgery sound "+name+": "+error.Message);}
         }
         void Play(string name) {if(source!=null && clips.TryGetValue(name,out var clip))source.PlayOneShot(clip);}
+        public void Grab() {Play("ForcepsGrab");}
         public void Mistake() {Play("Mistake");}
         public void Stitch()
         {

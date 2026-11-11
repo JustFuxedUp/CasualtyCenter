@@ -136,7 +136,9 @@ namespace CasualtiesSurgery.Game
         {
             var next=sites.Find(v=>!v.Site.Completed && v.Layout.Page==page) ?? sites.Find(v=>!v.Site.Completed);
             if(next==null) { Finish("All fragments on this limb treated."); return; }
-            page=next.Layout.Page; SelectSite(next);
+            page=next.Layout.Page;
+            log("Showing fragment page "+(page+1)+"; visible remaining="+sites.Count(v=>!v.Site.Completed && v.Layout.Page==page)+"; total remaining="+board.Remaining+"; next ID="+board.NextId);
+            SelectSite(next);
         }
         void SelectSite(SiteView view)
         {
@@ -240,7 +242,7 @@ namespace CasualtiesSurgery.Game
             {
                 if (forceps != extraction) message = "Hold " + wheelKey + " to select " + (extraction ? "Forceps." : "Suture.");
                 else if (extraction)
-                { if (gesture.Begin(x,y)) grabOffset=fragment.position-host.handTransform.position; }
+                { if (gesture.Begin(x,y)) { grabOffset=fragment.position-host.handTransform.position; Plugin.Feedback?.Grab(); } }
                 else
                 {
                     ClearTrace(); lastStroke = new Vector2(local.x, local.y);

@@ -24,7 +24,7 @@ namespace CasualtiesSurgery.Game
             if(version!=1 || data==null || data.Type==JTokenType.Null) return;
             var board=data.ToObject<FragmentBoard>();
             if(board==null) return;
-            board.Validate(); board.LayoutVersion=1; // One-time grid-to-scatter migration; IDs and progress survive.
+            board.Validate(); if(board.LayoutVersion==0) board.LayoutVersion=1; // One-time grid-to-scatter migration; IDs and progress survive.
             boards.Remove(limb); boards.Add(limb,board);
             // Counts may be restored by another provider later in the same restore pass.
             context.Defer(()=> { if(limb!=null) board.Reconcile(limb.shrapnel); });

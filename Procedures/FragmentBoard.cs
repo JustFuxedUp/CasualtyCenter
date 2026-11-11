@@ -15,10 +15,10 @@ namespace CasualtiesSurgery.Procedures
         public List<FragmentSite> Sites = new List<FragmentSite>();
         public int Remaining => Sites.Count(s => !s.Completed);
         public FragmentBoard() { }
-        public FragmentBoard(int seed, int count) { Seed=seed; LayoutVersion=1; Reconcile(count); }
+        public FragmentBoard(int seed, int count) { Seed=seed; LayoutVersion=2; Reconcile(count); }
         public void Validate()
         {
-            if (LayoutVersion<0 || LayoutVersion>1 || Sites==null || Sites.Count>10000 || NextId<0 || NextId>10000 ||
+            if (LayoutVersion<0 || LayoutVersion>2 || Sites==null || Sites.Count>10000 || NextId<0 || NextId>10000 ||
                 Sites.Any(s=>s==null || s.Id<0 || s.Id>=NextId) || Sites.Select(s=>s.Id).Distinct().Count()!=Sites.Count)
                 throw new ArgumentException("Invalid saved surgery board.");
         }
@@ -46,11 +46,11 @@ namespace CasualtiesSurgery.Procedures
         {
             uint state=unchecked((uint)Seed ^ ((uint)id+1)*2654435761u);
             if(state==0) state=1;
-            if(LayoutVersion==1)
+            if(LayoutVersion>=1)
             {
                 var positions=Scatter(id/12);
                 return new SiteLayout { Page=id/12,X=positions[id%12].X,Y=positions[id%12].Y,
-                    Angle=-35+Next(ref state)*70,Length=300+Next(ref state)*45,Width=55+Next(ref state)*10 };
+                    Angle=LayoutVersion>=2 ? Next(ref state)*360 : -35+Next(ref state)*70,Length=300+Next(ref state)*45,Width=55+Next(ref state)*10 };
             }
             return new SiteLayout {
                 Page=id/12, X=-337.5f+(id%4)*225f+(Next(ref state)-0.5f)*16,
