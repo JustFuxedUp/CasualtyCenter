@@ -342,7 +342,7 @@ namespace CasualtiesSurgery.Game
         }
         void ApplyGel(Vector3 world,float ml)
         {
-            SiteView target=null;float best=22*22;
+            SiteView target=null;float best=44*44;
             foreach(var view in sites)
             {
                 if(view.Site.Completed || !view.Site.Extracted || view.Layout.Page!=page)continue;

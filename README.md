@@ -2,7 +2,7 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.12.0 gel and tool trails
+## Current build: 0.12.1 gel and tool trails
 
 Gel is the fourth radial tool: use 2 mL on an extracted fragment wound to close it,
 or coat fracture-incision sections to disinfect them. Coverage and partial doses

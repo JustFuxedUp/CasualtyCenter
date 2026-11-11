@@ -99,11 +99,15 @@ namespace CasualtiesSurgery.Game
         }
         void RefreshPrep()
         {
-            for(int i=0;i<prep.Count;i++)prep[i].color=new Color(.25f,.85f,.75f,.55f*state.GelCoverage[i]/GelRules.SectionMl);
+            for(int i=0;i<prep.Count;i++)
+            {
+                prep[i].gameObject.SetActive(state.Stage==FractureStage.Incision);
+                prep[i].color=new Color(.25f,.85f,.75f,.55f*state.GelCoverage[i]/GelRules.SectionMl);
+            }
         }
         void ApplyGel(Vector2 point,float ml)
         {
-            int closest=-1;float best=24*24;
+            int closest=-1;float best=48*48;
             for(int i=0;i<9;i++){float distance=(point-new Vector2(0,120-i*30)).sqrMagnitude;if(state.GelCoverage[i]<GelRules.SectionMl && distance<best){best=distance;closest=i;}}
             if(closest<0)return;
             if(state.Disinfect(closest,ml)){limb.SetDisinfect(60);RefreshPrep();}

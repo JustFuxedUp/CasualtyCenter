@@ -48,7 +48,7 @@ namespace CasualtiesSurgery.Game
         {
             if(!held || dt<=0){Stop();return 0;}
             Vector2 p=layer.InverseTransformPoint(world);float dispensed=0;
-            if(tracing && previousTool==tool && (tool==SurgeryTool.Suture||tool==SurgeryTool.Scalpel))
+            if(tracing && previousTool==tool && tool!=SurgeryTool.Gel)
             {
                 Vector2 d=p-previous;
                 if(tool==SurgeryTool.Suture)SutureCm+=d.magnitude/100;
@@ -57,7 +57,7 @@ namespace CasualtiesSurgery.Game
             if(tool==SurgeryTool.Gel)
             {
                 dispensed=GelRules.FlowMlPerSecond*dt;GelMl+=dispensed;gelTick+=dt;
-                if(gelTick>=.04f){gelTick=0;float size=Random.Range(9f,17f);MarkAt(p+Random.insideUnitCircle*7,Vector2.one*size,new Color(.25f,.9f,.65f,.13f),.8f);}
+                if(gelTick>=.04f){gelTick=0;float size=Random.Range(18f,34f);MarkAt(p+Random.insideUnitCircle*14,Vector2.one*size,new Color(.25f,.9f,.65f,.13f),.8f);}
             }
             previous=p;previousTool=tool;tracing=true;UpdateCounter();return dispensed;
         }
