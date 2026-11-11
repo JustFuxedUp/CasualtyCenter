@@ -1,5 +1,8 @@
 # 0.7.0: full-size window, forgiving gestures and clearer feedback
 
+For the 0.8.0 multi-wound board, smaller hand and perpendicular fragments, see
+[current controls and persistence](PERSISTENT-BOARDS.md).
+
 ## Changes
 
 - The native window is back at its original size. Wound/fragment assets, tool

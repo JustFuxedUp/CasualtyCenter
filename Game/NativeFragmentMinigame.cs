@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CasualtiesSurgery.Procedures;
 using HarmonyLib;
 using TMPro;
@@ -14,7 +15,25 @@ namespace CasualtiesSurgery.Game
     {
         readonly MinigameBase host;
         readonly WoundView source;
-        readonly OperationSession session;
+        OperationSession session;
+        readonly Limb patientLimb;
+        readonly float recovery, reduction, handScale;
+        readonly FragmentBoard board;
+        FragmentSite selectedSite;
+        sealed class SiteView
+        {
+            public FragmentSite Site;
+            public SiteLayout Layout;
+            public RectTransform Wound, Fragment, Mask;
+            public Vector2 FragmentOrigin;
+            public float Grip, Pull;
+            public TextMeshProUGUI Label;
+        }
+        readonly List<SiteView> sites=new List<SiteView>();
+        int page;
+        Sprite nativeShard;
+        float gripPosition, pullDistance;
+        readonly List<GameObject> activeGuides=new List<GameObject>();
         readonly Action<string> log;
         RectTransform root, field, path, startMarker, endMarker;
         RectTransform wound, strokeRoot, wheel;
@@ -38,11 +57,12 @@ namespace CasualtiesSurgery.Game
         public bool Ended { get; private set; }
 
         public NativeFragmentMinigame(MinigameBase host, WoundView source, Limb limb,
-            float recovery, float reduction, KeyCode wheelKey, float viewScale, Action<string> log)
+            float recovery, float reduction, KeyCode wheelKey, float viewScale, float handScale, Action<string> log)
         {
             this.host = host; this.source = source; this.log = log;
             this.wheelKey = wheelKey; this.viewScale = viewScale;
-            session = new OperationSession(source.body, limb, recovery, reduction, this);
+            patientLimb=limb; this.recovery=recovery; this.reduction=reduction; this.handScale=handScale;
+            board=FragmentBoardStore.Get(limb);
         }
         public override HandSpriteType HandType() => forceps ? HandSpriteType.Tweezers : HandSpriteType.Point;
         // The host looks up this existing key once at startup; RefreshGuide then supplies our stage instructions.
@@ -53,7 +73,7 @@ namespace CasualtiesSurgery.Game
         public override void Start()
         {
             originalHandScale = host.handTransform.localScale;
-            host.handTransform.localScale = originalHandScale * viewScale; scaleApplied = true;
+            host.handTransform.localScale = originalHandScale * handScale; scaleApplied = true;
             fade = host.handTransform.gameObject.AddComponent<WristFade>();
             var go = new GameObject("CasualtyCenterFragmentMinigame", typeof(RectTransform));
             root = (RectTransform)go.transform;
@@ -66,32 +86,13 @@ namespace CasualtiesSurgery.Game
             background.raycastTarget = true; windowBounds=background.rectTransform;
             heading = Text("Heading", root, new Vector2(0, 440), new Vector2(940, 95), 24);
             field = Box("BodySection", root, new Vector2(0, 5), new Vector2(900, 700), new Color(0.24f, 0.18f, 0.18f)).rectTransform;
-            // One randomized wound per treatment for now; body-section selection is a later content layer.
-            woundLength = UnityEngine.Random.Range(350f, 460f); woundWidth = UnityEngine.Random.Range(50f, 70f);
-            wound = Box("Wound", field, new Vector2(UnityEngine.Random.Range(-120f, 120f), UnityEngine.Random.Range(-35f, 35f)),
-                new Vector2(35, woundLength), new Color(0.48f, 0.09f, 0.12f)).rectTransform;
-            wound.localScale = Vector3.one * viewScale;
-            wound.anchoredPosition *= viewScale;
-            wound.localEulerAngles = new Vector3(0, 0, UnityEngine.Random.Range(-30f, 30f));
-            wound.GetComponent<Image>().raycastTarget = false;
-            strokeRoot = new GameObject("SutureTrace", typeof(RectTransform)).GetComponent<RectTransform>();
-            strokeRoot.SetParent(wound, false);
-            path = Box("ExtractionPath", wound, Vector2.zero, Vector2.one, new Color(0.2f, 0.85f, 0.65f, 0.4f)).rectTransform;
-            startMarker = Box("Start", wound, Vector2.zero, new Vector2(100, 48), new Color(0.22f, 0.45f, 0.4f)).rectTransform;
-            startLabel = Text("StartLabel", startMarker, Vector2.zero, new Vector2(110, 60), 28);
-            endMarker = Box("End", wound, Vector2.zero, new Vector2(100, 48), new Color(0.22f, 0.45f, 0.4f)).rectTransform;
-            Text("EndLabel", endMarker, Vector2.zero, new Vector2(110, 60), 28).text = "END";
-            // Read only the native sprite, not the prefab's scripts or treatment logic.
-            var nativePrefab = Resources.Load<GameObject>("Special/ShrapnelMinigame");
-            var nativeImage = nativePrefab != null && nativePrefab.transform.childCount > 0
-                ? nativePrefab.transform.GetChild(0).GetComponent<Image>() : null;
-            if (nativeImage == null || nativeImage.sprite == null)
-                throw new InvalidOperationException("Native shrapnel sprite was not found in Special/ShrapnelMinigame.");
-            var shard = Box("NativeShrapnel", wound, Vector2.zero, Vector2.one, Color.white);
-            shard.sprite=nativeImage.sprite; shard.raycastTarget=false;
-            fragment=shard.rectTransform;
-            fragment.sizeDelta=nativeImage.sprite.rect.size*(woundLength*0.45f/nativeImage.sprite.rect.height);
-            fragmentOrigin=new Vector2(0,-woundLength*0.05f); ResetFragment();
+            var nativePrefab=Resources.Load<GameObject>("Special/ShrapnelMinigame");
+            var nativeImage=nativePrefab!=null && nativePrefab.transform.childCount>0 ? nativePrefab.transform.GetChild(0).GetComponent<Image>() : null;
+            if(nativeImage==null || nativeImage.sprite==null) throw new InvalidOperationException("Native shrapnel sprite missing.");
+            nativeShard=nativeImage.sprite;
+            foreach(var site in board.Sites)
+                if(!site.Completed) sites.Add(new SiteView { Site=site,Layout=board.Layout(site.Id) });
+            log("Opened fragment board "+board.Seed+" on "+patientLimb.fullName+" with "+board.Remaining+" remaining sites.");
             suture.TurnCommitted += CommitThreadTurn;
             status = Text("Status", root, new Vector2(0, -415), new Vector2(940, 145), 22);
             wheel = new GameObject("ToolWheel", typeof(RectTransform), typeof(ToolWheelGraphic)).GetComponent<RectTransform>();
@@ -100,7 +101,90 @@ namespace CasualtiesSurgery.Game
             Text("Forceps", wheel, new Vector2(118, 0), new Vector2(145, 90), 30).text = "Forceps";
             Text("Suture", wheel, new Vector2(-118, 0), new Vector2(145, 90), 30).text = "Suture";
             wheel.gameObject.SetActive(false);
-            PrepareGesture(); RefreshGuide();
+            SelectFirst(); RefreshGuide();
+        }
+
+        void EnsureView(SiteView view)
+        {
+            if(view.Wound!=null) return;
+                var site=view.Site; var layout=view.Layout;
+                var art=Box("Wound "+site.Id,field,new Vector2(layout.X,layout.Y),new Vector2(35,layout.Length),new Color(0.48f,0.09f,0.12f)).rectTransform;
+                art.localScale=Vector3.one*viewScale; art.localEulerAngles=new Vector3(0,0,layout.Angle);
+                // The wound runs vertically in local space. The shard crosses it horizontally.
+                var mask=new GameObject("ExposedFragment",typeof(RectTransform),typeof(Image),typeof(Mask)).GetComponent<RectTransform>();
+                mask.GetComponent<Mask>().showMaskGraphic=false; mask.GetComponent<Image>().raycastTarget=false;
+                mask.SetParent(art,false); mask.anchorMin=mask.anchorMax=new Vector2(0.5f,0.5f); mask.pivot=new Vector2(0,0.5f);
+                mask.anchoredPosition=new Vector2(17.5f,0); mask.sizeDelta=new Vector2(360,240);
+                var shard=Box("NativeShrapnel",mask,Vector2.zero,Vector2.one,Color.white);
+                shard.sprite=nativeShard; shard.raycastTarget=false;
+                var shardRect=shard.rectTransform;
+                // Anchor to the mask's left edge so the concealed base stays at the cut.
+                shardRect.anchorMin=shardRect.anchorMax=new Vector2(0,0.5f);
+                float shardLength=layout.Length*0.38f;
+                shardRect.sizeDelta=nativeShard.rect.size*(shardLength/nativeShard.rect.height);
+                shardRect.localEulerAngles=new Vector3(0,0,-90);
+                var origin=new Vector2(25-17.5f,0); shardRect.anchoredPosition=origin;
+                var label=Text("SiteLabel",field,new Vector2(layout.X,layout.Y-layout.Length*viewScale/2-18),new Vector2(210,28),14);
+                view.Wound=art; view.Fragment=shardRect; view.Mask=mask; view.FragmentOrigin=origin;
+                view.Grip=25+shardLength*0.32f; view.Pull=shardLength/2-25+17.5f+8; view.Label=label;
+        }
+        void SelectFirst()
+        {
+            var next=sites.Find(v=>!v.Site.Completed && v.Layout.Page==page) ?? sites.Find(v=>!v.Site.Completed);
+            if(next==null) { Finish("All fragments on this limb treated."); return; }
+            page=next.Layout.Page; SelectSite(next);
+        }
+        void SelectSite(SiteView view)
+        {
+            EnsureView(view);
+            session?.Cancel();
+            if(strokeRoot!=null) UnityEngine.Object.Destroy(strokeRoot.gameObject);
+            foreach(var guide in activeGuides) if(guide!=null) {guide.SetActive(false);UnityEngine.Object.Destroy(guide);}
+            activeGuides.Clear(); previewLine=null;
+            selectedSite=view.Site; wound=view.Wound; fragment=view.Fragment; fragmentOrigin=view.FragmentOrigin;
+            woundLength=view.Layout.Length; woundWidth=view.Layout.Width; gripPosition=view.Grip; pullDistance=view.Pull;
+            session=new OperationSession(source.body,patientLimb,recovery,reduction,this);
+            if(selectedSite.Extracted && !session.Extract()) throw new InvalidOperationException("Could not resume pending suture.");
+            strokeRoot=new GameObject("SutureTrace",typeof(RectTransform)).GetComponent<RectTransform>(); strokeRoot.SetParent(wound,false);
+            path=Box("ExtractionPath",wound,Vector2.zero,Vector2.one,new Color(0.2f,0.85f,0.65f,0.4f)).rectTransform;
+            startMarker=Box("Start",wound,Vector2.zero,new Vector2(100,48),new Color(0.22f,0.45f,0.4f)).rectTransform;
+            startLabel=Text("StartLabel",startMarker,Vector2.zero,new Vector2(110,60),28);
+            endMarker=Box("End",wound,Vector2.zero,new Vector2(100,48),new Color(0.22f,0.45f,0.4f)).rectTransform;
+            Text("EndLabel",endMarker,Vector2.zero,new Vector2(110,60),28).text="END";
+            activeGuides.Add(path.gameObject); activeGuides.Add(startMarker.gameObject); activeGuides.Add(endMarker.gameObject);
+            // Keep the exposed shard above the active guide, still clipped by its mask.
+            view.Mask.SetAsLastSibling();
+            forceps=!selectedSite.Extracted; suture.Reset(); readyForPress=false;
+            PrepareGesture(); host.UpdateHandSprite(true); RefreshSites();
+        }
+        void RefreshSites()
+        {
+            foreach(var v in sites)
+            {
+                bool visible=!v.Site.Completed && v.Layout.Page==page;
+                if(visible) EnsureView(v);
+                if(v.Wound==null) continue;
+                v.Wound.gameObject.SetActive(visible); v.Label.gameObject.SetActive(visible);
+                v.Fragment.gameObject.SetActive(!v.Site.Extracted);
+                v.Label.text=(v.Site==selectedSite ? "> " : "")+(v.Site.Id+1)+" / "+(v.Site.Extracted ? "SUTURE" : "FRAGMENT");
+            }
+        }
+        bool ChangeSite()
+        {
+            if(gesture.Active || suture.Active || wheelOpen) return false;
+            if(Input.GetKeyDown(KeyCode.PageDown) || Input.GetKeyDown(KeyCode.PageUp))
+            {
+                var pages=sites.Where(v=>!v.Site.Completed).Select(v=>v.Layout.Page).Distinct().OrderBy(n=>n).ToList();
+                int index=pages.IndexOf(page), direction=Input.GetKeyDown(KeyCode.PageDown)?1:-1;
+                page=pages[(index+direction+pages.Count)%pages.Count];
+                SelectFirst(); return true;
+            }
+            if(!host.handStartedClicking) return false;
+            Vector2 point=field.InverseTransformPoint(host.handTransform.position);
+            var target=sites.Find(v=>!v.Site.Completed && v.Layout.Page==page &&
+                new Rect(v.Layout.X-105,v.Layout.Y-105,210,210).Contains(point));
+            if(target==null || target.Site==selectedSite) return false;
+            SelectSite(target); return true;
         }
 
         public string InvalidReason()
@@ -108,9 +192,10 @@ namespace CasualtiesSurgery.Game
             if (Ended) return "Operation ended.";
             if (host == null || !ReferenceEquals(MinigameBase.main, host) || !ReferenceEquals(host.currentMinigame, this))
                 return "Native minigame was closed or replaced.";
-            if (source == null || !source.gameObject.activeInHierarchy || source.body != session.Patient)
+            if (patientLimb == null || source == null || !source.gameObject.activeInHierarchy || source.body != patientLimb.body)
                 return "Health screen or patient changed.";
-            return session.InvalidReason();
+            if(board.Remaining!=patientLimb.shrapnel) return "Fragment count changed outside surgery; reopen to reconcile the board.";
+            return session==null ? null : session.InvalidReason();
         }
 
         public override void Update(List<RaycastResult> hits)
@@ -122,19 +207,21 @@ namespace CasualtiesSurgery.Game
             { Finish("Surgery closed by right-click outside the window."); return; }
             if (BlocksToolInput && Input.GetKeyDown(KeyBinds.GetBind("pause"))) { Finish("Surgery cancelled."); return; }
             if (HandleWheel()) { RefreshGuide(); return; }
+            if(ChangeSite()) { RefreshGuide(); return; }
             if (!readyForPress)
             {
                 if (!host.handClicking) readyForPress = true;
                 RefreshGuide(); return;
             }
             Vector3 local = wound.InverseTransformPoint(host.handTransform.position);
-            float x = local.x / woundWidth, y = 0.5f - local.y / woundLength;
             bool extraction = session.Procedure.Stage == FragmentStage.Extraction;
+            float x=extraction ? local.y/woundWidth : local.x/woundWidth;
+            float y=extraction ? 0.38f-(local.x-gripPosition)/woundLength : 0.5f-local.y/woundLength;
             if (host.handStartedClicking)
             {
                 if (forceps != extraction) message = "Hold " + wheelKey + " to select " + (extraction ? "Forceps." : "Suture.");
                 else if (extraction)
-                { if (!gesture.Begin(x, y)) message = "Grip the upper part of the fragment first."; }
+                { if (!gesture.Begin(x, y)) message = "Grip the exposed tip of the fragment first."; }
                 else
                 {
                     ClearTrace(); lastStroke = new Vector2(local.x, local.y);
@@ -151,14 +238,20 @@ namespace CasualtiesSurgery.Game
                     {
                         if (!gesture.End(x, y)) Slip();
                         else if (!session.Extract()) { Finish("Wound changed; treatment cancelled."); return; }
-                        else { PrepareGesture(); message = "Fragment lifted. Switch to Suture and draw one zigzag down the wound."; }
+                        else { selectedSite.Extracted=true; RefreshSites(); PrepareGesture(); message = "Fragment lifted. Switch to Suture and draw one zigzag down the wound."; }
                     }
                     else if (!suture.End(x, y, out int quality)) Slip();
                     else if (!session.CompleteContinuousSuture()) { Finish("Wound changed; treatment cancelled."); return; }
-                    else { PlayerCamera.main.DoAlert("Suture quality: " + quality + "/100", true); Finish("Suture quality " + quality + "/100. Fragment treated on " + session.Limb.fullName + "."); return; }
+                    else
+                    {
+                        if(!board.Complete(selectedSite.Id)) { Finish("Board state mismatch after treatment."); return; }
+                        PlayerCamera.main.DoAlert("Suture quality: "+quality+"/100",true);
+                        log("Treated site "+selectedSite.Id+" on board "+board.Seed+"; "+board.Remaining+" remaining.");
+                        RefreshSites(); SelectFirst(); return;
+                    }
                 }
                 else if (!(extraction ? gesture.Move(x, y) : suture.Move(x, y))) Slip();
-                if (extraction && gesture.Active) fragment.anchoredPosition=fragmentOrigin+Vector2.up*(gesture.Travel*woundLength);
+                if (extraction && gesture.Active) fragment.anchoredPosition=fragmentOrigin+Vector2.right*(gesture.Travel*woundLength);
                 else if (!extraction && suture.Active) PreviewThread(new Vector2(local.x,local.y));
             }
             RefreshGuide();
@@ -233,35 +326,35 @@ namespace CasualtiesSurgery.Game
             gesture.Reset(); ResetFragment(); suture.Reset(); ClearTrace();
             if (!session.Slip()) { Finish("Wound changed; treatment cancelled."); return; }
             host.ForceUngrab();
-            message = extraction ? "Fragment reset: -1 skin, up to +0.2 bleeding. Grip its upper end and retry."
+            message = extraction ? "Fragment reset: -1 skin, up to +0.2 bleeding. Grip its exposed tip and retry."
                 : "Suture reset. No damage or resource cost; release and try again.";
         }
         void PrepareGesture()
         {
             bool extraction = session.Procedure.Stage == FragmentStage.Extraction;
-            gesture = new FragmentPull(2f);
+            gesture = new FragmentPull(2f,pullDistance/woundLength,0.005f);
             fragment.gameObject.SetActive(extraction); ResetFragment();
             startMarker.GetComponent<Image>().enabled=!extraction;
-            startMarker.anchoredPosition = extraction ? new Vector2(woundWidth*2.8f, woundLength*0.12f) : new Vector2(-woundWidth, woundLength*0.5f);
-            endMarker.anchoredPosition = extraction ? new Vector2(0, woundLength*0.92f) : new Vector2(0, -woundLength*0.5f);
-            path.gameObject.SetActive(extraction); path.anchoredPosition = new Vector2(0, woundLength*0.52f);
-            path.sizeDelta = new Vector2(woundWidth*0.72f, woundLength*0.8f);
+            startMarker.anchoredPosition = extraction ? new Vector2(gripPosition,65) : new Vector2(-woundWidth, woundLength*0.5f);
+            endMarker.anchoredPosition = extraction ? new Vector2(gripPosition+pullDistance,0) : new Vector2(0, -woundLength*0.5f);
+            path.gameObject.SetActive(extraction); path.anchoredPosition = new Vector2(gripPosition+pullDistance/2,0);
+            path.sizeDelta = new Vector2(pullDistance,woundWidth*0.72f);
             startLabel.text = extraction ? "GRIP TOP" : "START";
             if (!extraction)
             {
                 // Faint example marks suggest the motion without requiring exact tracing.
                 for (int i = 0; i <= 6; i++)
-                    Box("StitchGuide", wound, new Vector2(i%2 == 0 ? -woundWidth : woundWidth, woundLength*(0.5f-i/6f)),
-                        new Vector2(12,12), new Color(0.4f,0.7f,0.6f,0.5f)).raycastTarget = false;
+                    activeGuides.Add(Box("StitchGuide", wound, new Vector2(i%2 == 0 ? -woundWidth : woundWidth, woundLength*(0.5f-i/6f)),
+                        new Vector2(12,12), new Color(0.4f,0.7f,0.6f,0.5f)).gameObject);
             }
         }
         public void RefreshGuide()
         {
             if (Ended || heading == null) return;
             bool extraction = session.Procedure.Stage == FragmentStage.Extraction;
-            heading.text = session.Limb.fullName + (extraction ? " / EXTRACT FRAGMENT" : " / CONTINUOUS SUTURE");
+            heading.text = patientLimb.fullName+" / "+board.Remaining+" wounds / page "+(page+1)+" (PgUp/PgDn)" + (extraction ? " / EXTRACT FRAGMENT" : " / CONTINUOUS SUTURE");
             status.text = message;
-            host.guideText.text = "Hold " + wheelKey + " inside for tools. Right-click outside to exit. " + (forceps ? "Grip the fragment top and pull along the wound." : "Zigzag in one stroke. Failed sutures have no cost.");
+            host.guideText.text = "Hold " + wheelKey + " inside for tools. Right-click outside to exit. " + (forceps ? "Grip the exposed tip and pull across the cut. Click another wound to select." : "Zigzag in one stroke. Failed sutures have no cost.");
         }
         public void Finish(string reason)
         {
@@ -273,7 +366,7 @@ namespace CasualtiesSurgery.Game
         public void OnEnded()
         {
             if (Ended) return;
-            Ended = true; Plugin.ProtectExitClick(); gesture?.Reset(); suture.Reset(); session.Cancel();
+            Ended = true; Plugin.ProtectExitClick(); gesture?.Reset(); suture.Reset(); session?.Cancel();
             if (fade != null) { fade.enabled = false; UnityEngine.Object.Destroy(fade); }
             if (host != null && host.handTransform != null && scaleApplied) { host.handTransform.localScale = originalHandScale; scaleApplied = false; }
             // EndMinigame owns destruction normally. Also clean our root if the host was replaced.

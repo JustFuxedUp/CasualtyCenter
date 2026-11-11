@@ -37,3 +37,19 @@ public class Limb
 public class PlayerCamera { public static PlayerCamera main; public Body body; }
 public class Minigame { }
 public class MinigameBase { public static MinigameBase main; public Minigame currentMinigame; }
+
+namespace CUCoreLib.Saving
+{
+    public interface ILimbSaveProvider
+    {
+        int GetVersion();
+        Newtonsoft.Json.Linq.JToken Capture(Limb limb,int index);
+        void Restore(Limb limb,int index,Newtonsoft.Json.Linq.JToken data,int version,SaveRestoreContext context);
+    }
+    public class SaveRestoreContext
+    {
+        readonly System.Collections.Generic.List<System.Action> pending=new System.Collections.Generic.List<System.Action>();
+        public void Defer(System.Action action) { pending.Add(action); }
+        public void Flush() { foreach(var action in pending) action(); pending.Clear(); }
+    }
+}

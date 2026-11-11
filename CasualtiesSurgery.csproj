@@ -4,7 +4,7 @@
     <AutomaticallyUseReferenceAssemblyPackages>true</AutomaticallyUseReferenceAssemblyPackages>
     <LangVersion>latest</LangVersion>
     <AssemblyName>CasualtiesSurgery</AssemblyName>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
   <Import Project="GamePath.local.props" Condition="Exists('GamePath.local.props')" />
@@ -14,6 +14,7 @@
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
     <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(ManagedPath)/UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Newtonsoft.Json"><HintPath>$(ManagedPath)/Newtonsoft.Json.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.TextMeshPro"><HintPath>$(ManagedPath)/Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="0Harmony"><HintPath>$(GamePath)/BepInEx/core/0Harmony.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.UI"><HintPath>$(ManagedPath)/UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>

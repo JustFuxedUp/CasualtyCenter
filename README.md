@@ -2,13 +2,15 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.7.0 surgery grace and feedback
+## Current build: 0.8.0 persistent fragment boards
 
 Open the normal health screen, right-click a limb on the dummy, and select
 **Extract fragment + suture**. The game's native minigame screen and hand open.
 On an attached organic limb with fragments, use forceps to pull a fragment along its marked path, then use
 the suture tool to draw one continuous zigzag across the wound. Hold right mouse
-for the cursor-centered tool wheel. The window stays full size; wound assets and hand default to 40% scale.
+for the cursor-centered tool wheel. The window stays full size; wound assets default to 40% scale and the hand to 22%.
+Each limb has a seeded board with one site per fragment; interruption and normal
+saves preserve completed sites and pending sutures. Click a wound to select it.
 Right-click outside to exit. Failed sutures have no cost. Completion removes one fragment,
 restores 5 skin points and reduces bleeding by 1 using the latest wound values.
 Healing amounts are configurable. Extraction slips cost 1 skin and add up to 0.2 bleeding; failed sutures are harmless.
@@ -17,7 +19,8 @@ This playtest uses free tools: crafting, supplies and multiplayer surgery are
 not implemented. The world keeps running while the panel is open. The native minigame handles procedure input and exits; the health context menu
 blocks background player input while it is open.
 
-- [Current changes, controls and playtest](docs/SURGERY-GRACE.md)
+- [Current board controls, persistence and playtest](docs/PERSISTENT-BOARDS.md)
+- [Previous changes, controls and playtest](docs/SURGERY-GRACE.md)
 - [Previous controls, scoring and playtest](docs/COMPACT-SURGERY.md)
 - [Body-section design note](docs/BODY-SECTIONS-DESIGN.md)
 - [Native minigame controls, review and playtest](docs/NATIVE-MINIGAME.md)

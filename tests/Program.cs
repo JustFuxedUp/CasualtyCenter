@@ -60,6 +60,7 @@ static class Program
         SessionChecks.Run(Check);
         SutureChecks.Run(Check);
         GraceChecks.Run(Check);
+        BoardChecks.Run(Check);
         Console.WriteLine(checks + " procedure, gesture and session checks passed.");
     }
 }

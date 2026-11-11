@@ -9,7 +9,7 @@ namespace CasualtiesSurgery.Procedures
         public event Action<float,float> TurnCommitted;
         public SutureStroke(float grace = 1f) { this.grace = grace; }
         float SideThreshold => Math.Max(0.2f, 1f - 0.35f*grace);
-        float WidthLimit => 1f + 0.6f*grace;
+        float WidthLimit => 1f + 0.9f*grace;
         readonly List<float> gaps = new List<float>();
         readonly List<float> angles = new List<float>();
         float previousX, previousY, lastTurnX, lastTurnY, distance, direct, furthest;
