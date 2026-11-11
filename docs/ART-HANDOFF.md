@@ -28,3 +28,12 @@ User report: after repeated injury/surgery cycles, only two wounds/fragments ini
 ## Next gameplay milestone
 
 Scalpel access, internal bleeding repair and fracture treatment are planned, not implemented here. Before art-specific minigames, confirm the game's actual injury fields, treatment limits, and which internal wounds require incision/closure. Reuse the selected-tool behavior and continuous suture model without adding extra healing beyond real injuries.
+
+
+## Follow-up: 0.10.2
+
+The visibility report recurred: specifically two fragments appear first, then three after those are treated. The heal command may have been used during these repeated injury/surgery tests. Treat that as reproduction context, not a confirmed cause or a resolved issue. Check counts and page IDs before and after healing on the next reproduction.
+
+Removed the white square exposed when a shard loosened: disabling Unity's Mask also exposed its Image, despite showMaskGraphic=false. The mask now stays enabled and hidden; only the loose shard opts out of masking. Embedded/reset shards opt back in, and the fading copy remains unmasked.
+
+Playtest: pull a shard until loose, move it around, release it, and confirm there is no white rectangle during movement or fade. Also release too early and verify the reset shard remains embedded and clipped.

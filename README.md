@@ -2,7 +2,7 @@
 
 Trauma Center-inspired surgery for Casualties: Unknown. Working title.
 
-## Current build: 0.10.1 full-circle wounds and grab feedback
+## Current build: 0.10.2 full-circle wounds and grab feedback
 
 Open the normal health screen, right-click a limb on the dummy, and select
 **Extract fragment + suture**. The game's native minigame screen and hand open.

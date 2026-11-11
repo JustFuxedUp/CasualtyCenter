@@ -274,7 +274,8 @@ namespace CasualtiesSurgery.Game
                 else if (!(extraction ? gesture.Move(x, y) : suture.Move(x, y))) Slip();
                 if (extraction && gesture.Active)
                 {
-                    fragment.GetComponentInParent<Mask>().enabled=!gesture.Loose;
+                    // Keep the stencil mask active so its hidden graphic never becomes visible.
+                    fragment.GetComponent<Image>().maskable=!gesture.Loose;
                     if(gesture.Loose) fragment.position=host.handTransform.position+grabOffset;
                     else fragment.anchoredPosition=fragmentOrigin+Vector2.right*(gesture.Travel*woundLength);
                 }
@@ -322,7 +323,7 @@ namespace CasualtiesSurgery.Game
         void FadeShard()
         {
             fragment.position=host.handTransform.position+grabOffset;
-            fragment.GetComponentInParent<Mask>().enabled=false;
+            fragment.GetComponent<Image>().maskable=false;
             var copy=UnityEngine.Object.Instantiate(fragment.gameObject,field,true);
             var image=copy.GetComponent<Image>(); image.raycastTarget=false;
             fading.Add(new FadingShard {Image=image});
@@ -339,7 +340,7 @@ namespace CasualtiesSurgery.Game
         }
         void ResetFragment()
         {
-            if (fragment != null) {fragment.anchoredPosition=fragmentOrigin;fragment.GetComponentInParent<Mask>().enabled=true;}
+            if (fragment != null) {fragment.anchoredPosition=fragmentOrigin;fragment.GetComponent<Image>().maskable=true;}
         }
         void ClearTrace()
         {
