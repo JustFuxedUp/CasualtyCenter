@@ -75,6 +75,14 @@ static class SessionChecks
         owned.Cancel();
         check(!owned.Stitch(out _) && s.Limb.shrapnel == 1 && s.Limb.skinHealth == 55,
             "Native exit cleanup preserves exactly one completed reward");
+        s = NewSession();
+        check(!s.CompleteContinuousSuture(), "Continuous suture requires extraction");
+        s.Extract(); s.Limb.skinHealth = 40; s.Limb.bleedAmount = 8;
+        check(s.CompleteContinuousSuture() && s.Limb.shrapnel == 1 && s.Limb.skinHealth == 45 && s.Limb.bleedAmount == 7,
+            "Continuous suture applies one atomic treatment using fresh stats");
+        check(!s.CompleteContinuousSuture(), "Continuous treatment cannot be repeated");
+        s = NewSession(); s.Extract(); s.Cancel();
+        check(!s.CompleteContinuousSuture() && s.Limb.shrapnel == 2, "Cancelled continuous suture grants no reward");
         s = NewSession(); s.Limb.skinHealth = 0; s.Limb.bleedAmount = 100;
         check(s.Slip() && s.Limb.skinHealth == 0 && s.Limb.bleedAmount == 100, "Slip respects wound boundaries");
     }

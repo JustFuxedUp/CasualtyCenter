@@ -7,24 +7,28 @@ using UnityEngine.SceneManagement;
 
 namespace CasualtiesSurgery
 {
-    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.5.0")]
+    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.6.0")]
     [BepInDependency("net.cucorelib", "1.1")]
     public sealed class Plugin : BaseUnityPlugin
     {
         static Plugin instance;
         // Only our context menu needs custom input protection. The native minigame owns its input.
         public static bool BlockInput => instance != null &&
-            ((instance.healthMenu != null && instance.healthMenu.IsOpen) || Time.frameCount <= instance.releaseFrame);
+            ((instance.healthMenu != null && instance.healthMenu.IsOpen) || Time.frameCount <= instance.releaseFrame || (instance.active != null && instance.active.BlocksToolInput));
         public static bool OperationVisible => instance != null && instance.active != null;
         HealthMenu healthMenu;
         NativeFragmentMinigame active;
-        ConfigEntry<float> recovery, reduction;
+        ConfigEntry<float> recovery, reduction, viewScale;
+        ConfigEntry<KeyCode> wheelKey;
         Harmony harmony;
         int releaseFrame = -1;
 
         void Awake()
         {
             instance = this;
+            wheelKey = Config.Bind("Interface", "ToolWheelKey", KeyCode.Mouse1, "Hold to choose a tool at the cursor; release to select.");
+            viewScale = Config.Bind("Interface", "SurgeryScale", 0.4f,
+                new ConfigDescription("Native surgery screen and hand scale relative to vanilla.", new AcceptableValueRange<float>(0.3f, 0.8f)));
             recovery = Config.Bind("Treatment", "SkinRecovery", 5f,
                 new ConfigDescription("Skin points restored per completed fragment and suture.", new AcceptableValueRange<float>(0.1f, 100f)));
             reduction = Config.Bind("Treatment", "BleedingReduction", 1f,
@@ -39,14 +43,14 @@ namespace CasualtiesSurgery
             }
             healthMenu = new HealthMenu(BeginFromHealth, () => releaseFrame = Time.frameCount + 1);
             SceneManager.activeSceneChanged += SceneChanged;
-            Logger.LogInfo("Casualty Center 0.5.0 loaded. Health-dummy surgery uses the native minigame system.");
+            Logger.LogInfo("Casualty Center 0.6.0 loaded. Health-dummy surgery uses the native minigame system.");
         }
         void BeginFromHealth(WoundView source, Limb limb)
         {
             if (!enabled || active != null || source == null || !source.gameObject.activeInHierarchy ||
                 OperationSession.Ineligible(source.body, limb) != null || MinigameBase.main == null) return;
             var host = MinigameBase.main;
-            active = new NativeFragmentMinigame(host, source, limb, recovery.Value, reduction.Value,
+            active = new NativeFragmentMinigame(host, source, limb, recovery.Value, reduction.Value, wheelKey.Value, viewScale.Value,
                 text => Logger.LogInfo(text));
             try
             {

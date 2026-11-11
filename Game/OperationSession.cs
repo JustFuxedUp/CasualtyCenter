@@ -60,14 +60,17 @@ namespace CasualtiesSurgery.Game
             completed = false;
             if (InvalidReason() != null || Procedure.Stage != FragmentStage.Suture || Stitches >= 3) return false;
             if (Stitches < 2) { Stitches++; return true; }
-            if (!Procedure.TryCompleteSuture(Limb.shrapnel, Limb.skinHealth, Limb.bleedAmount,
-                skinRecovery, bleedingReduction, out var outcome)) return false;
-            // One main-thread transaction, after the last validation. No yielding or callbacks.
-            Limb.shrapnel = outcome.Fragments;
-            Limb.skinHealth = outcome.SkinHealth;
-            Limb.bleedAmount = outcome.Bleeding;
+            if (!CompleteContinuousSuture()) return false;
             Stitches++;
             completed = true;
+            return true;
+        }
+        public bool CompleteContinuousSuture()
+        {
+            if (InvalidReason() != null || Procedure.Stage != FragmentStage.Suture) return false;
+            if (!Procedure.TryCompleteSuture(Limb.shrapnel, Limb.skinHealth, Limb.bleedAmount,
+                skinRecovery, bleedingReduction, out var outcome)) return false;
+            Limb.shrapnel = outcome.Fragments; Limb.skinHealth = outcome.SkinHealth; Limb.bleedAmount = outcome.Bleeding;
             return true;
         }
         public bool Slip()

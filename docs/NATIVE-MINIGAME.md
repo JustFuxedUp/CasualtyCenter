@@ -1,5 +1,8 @@
 # 0.5.0: native surgery minigame
 
+For 0.6.0 radial tools, compact scale and continuous suturing, see
+[the current controls](COMPACT-SURGERY.md). The three-stitch controls below are historical.
+
 ## Player flow
 
 Open the health screen, right-click a limb, and choose **Extract fragment + suture**.
