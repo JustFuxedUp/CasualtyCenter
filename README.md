@@ -2,6 +2,9 @@
 
 A Trauma Center-inspired surgery mod for **Casualties: Unknown**, built on BepInEx 5 and CUCoreLib 1.1. The current prototype supports self-surgery through the game's health dummy and native minigame system.
 
+Disclaimer:
+Yes, this was heavily AI assisted for code. The branches literally are from a Codex folder. Do as you will with that information. All other assets are either some rip, handmade, or sourced from the game itself.
+
 **Installed baseline at handoff: 0.12.1. Local pending patch: 0.12.2 knife visual anchoring.** The patch built successfully but was not installed, committed or pushed when approval review hit a usage limit. See [current status](docs/STATUS.md) before resuming.
 
 ## Playable features
