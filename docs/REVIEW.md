@@ -34,12 +34,12 @@ errors, F8 opens in a run, the limb values match the game's health panel, and
 closing/reopening the panel never changes them. Check a menu with no active
 player as well. Build and rule checks cannot establish runtime compatibility.
 
-A GitHub pull request needs an owner/repository destination; this branch can be
-pushed there once that is provided. Nothing has been published remotely.
+Foundation PR: https://github.com/JustFuxedUp/CasualtyCenter/pull/1.
+For the next implementation, see [MVP review notes](MVP-REVIEW.md).
 
 ## Automated validation
 
 - Release build: 0 warnings, 0 errors.
 - 27 procedure checks passed.
 - CUCoreLib DLL and XML hashes verified against the official release assets.
-- Live 0.2.0 loading and inspector behavior remain untested.
+- User verified 0.2.0 loading, F8, changing limb stats and detached-limb inspection.

@@ -1,46 +1,42 @@
-# Casualties Surgery
+# Casualty Center
 
-Trauma Center-inspired surgery for Casualties: Unknown. Working title.
+A Trauma Center-inspired surgery mod for **Casualties: Unknown**, built on BepInEx 5 and CUCoreLib 1.1. The current prototype supports self-surgery through the game's health dummy and native minigame system.
 
-## Current build: 0.2.0 foundation
+**Installed baseline at handoff: 0.12.1. Local pending patch: 0.12.2 knife visual anchoring.** The patch built successfully but was not installed, committed or pushed when approval review hit a usage limit. See [current status](docs/STATUS.md) before resuming.
 
-F8 opens a read-only inspector showing the local player's fragment count, skin
-health, and bleeding for each limb. No treatment, crafting, inventory changes,
-or multiplayer surgery are enabled yet. The procedure rules are tested separately.
+## Playable features
 
-- [Library documentation](docs/LIBRARIES.md)
-- [Fragment design and confirmed game fields](docs/FRAGMENT-DESIGN.md)
-- [Code-review guide](docs/REVIEW.md)
+- Seeded fragment wounds: extract with forceps, then close with a continuous suture or gel.
+- Fractures: scalpel incision, two end-pivot bone halves to align, then suture closure. Treatment reduces the timer without instantly mending the bone.
+- Four-tool cursor-centered radial menu; native hand motion and sway; retained tool choice.
+- Persistent incisions, skin debt, extracted fragments, gel coverage and operation progress.
+- Gel disinfection and surgery-related infection risk based on preparation, immunity and accuracy.
+- Short feedback sounds, fading ratings and tool trails, debug supply counters, and open-surgery dummy markers.
+
+This is a **singleplayer prototype** with free test tools. Actual crafting, inventory consumption, multiplayer surgery, internal-bleeding procedures and final art are not implemented.
+
+## Start here
+
+| Need | Read |
+| --- | --- |
+| Resume development | [AGENTS.md](AGENTS.md), then [STATUS](docs/STATUS.md) |
+| Intended gameplay and defaults | [PROJECT](docs/PROJECT.md) |
+| Code ownership and save rules | [ARCHITECTURE](docs/ARCHITECTURE.md) |
+| Build, test, install, review and model choice | [WORKFLOW](docs/WORKFLOW.md) |
+| Next bounded tasks | [ROADMAP](docs/ROADMAP.md) |
+| Art sizes, library references, historical notes | [Documentation index](docs/INDEX.md) |
+
+## Controls
+
+Right-click a limb in the normal health dummy and choose a procedure. Hold right mouse inside the minigame to select **Forceps right / Suture up / Scalpel left / Gel down**; release to select. Right-click outside to exit. Fragment boards use PageUp/PageDown when necessary. The world stays live.
 
 ## Build
 
-Requires a current .NET SDK, the local full game with BepInEx 5, and the pinned
-CUCoreLib files. `GamePath.local.props` contains the local game path and is ignored
-by Git; copy the example if setting up another machine.
+Requires the installed game/BepInEx, pinned CUCoreLib and a current .NET SDK. Copy `GamePath.local.props.example` to the ignored local props file and set the actual game path. Restore libraries through `scripts/Restore-Libraries.ps1` only if missing or intentionally updating dependencies.
 
 ```powershell
-.\scripts\Restore-Libraries.ps1
-& 'C:\Program Files\dotnet\dotnet.exe' build .\CasualtiesSurgery.csproj -c Release
-& 'C:\Program Files\dotnet\dotnet.exe' run --project .\tests\ProcedureChecks.csproj -c Release
+dotnet build .CasualtiesSurgery.csproj -c Release
+dotnet run --project .	estsProcedureChecks.csproj -c Release
 ```
 
-The full SDK path avoids this machine's older 32-bit `dotnet` command. The mod
-targets .NET Framework 4.7.2, matching CUCoreLib; the SDK restores its reference
-assemblies during build. The small standalone rule-check runner targets .NET 10.
-
-## Install for testing
-
-Close the game first. Copy `lib/CUCoreLib/1.1/CUCoreLib.dll` into
-`BepInEx/plugins/CUCoreLib/`. Replace the existing surgery plugin with
-`bin/Release/net472/CasualtiesSurgery.dll` in `BepInEx/plugins/CasualtiesSurgery/`.
-Keep exactly one copy of each plugin DLL in the plugins tree.
-
-Set `HideManagerGameObject = true` in `BepInEx/config/BepInEx.cfg` and restart.
-Launch normally, enter a run and press F8. Check `BepInEx/LogOutput.log` for both
-plugins. The panel does not pause gameplay or capture all underlying game input.
-
-Build does not deploy automatically. CUCoreLib is a required dependency of 0.2.0.
-The previous verified starter remains in Git on `main` and its original net471
-build output is retained locally. Do not confuse that older DLL with this build.
-
-No game binaries, downloaded libraries, local paths, or config backups are committed.
+The plugin targets **net472**; the rule runner targets **net10.0**. Use the current 64-bit SDK if the default `dotnet` resolves to an older installation. The build does not deploy automatically. Install instructions and machine-specific setup routing are in WORKFLOW.

@@ -43,6 +43,28 @@ static class Program
         Check(!p.TryCompleteSuture(1, 60, 3, 0, 1, out _), "Zero recovery rejected");
         Check(!p.TryCompleteSuture(1, 60, 3, 5, -1, out _), "Negative reduction rejected");
         Check(p.TryCompleteSuture(1, 40, 8, 5, 1, out result) && result.SkinHealth == 45 && result.Bleeding == 7, "Uses latest supplied state");
-        Console.WriteLine(checks + " procedure checks passed.");
+        var drag = new PrecisionDrag(0.5f, 0.8f, 0.5f, 0.2f, 0.075f);
+        Check(!drag.End(0.5f, 0.2f), "Cannot finish without beginning");
+        Check(!drag.Begin(0.1f, 0.1f), "Cannot begin away from fragment");
+        Check(drag.Begin(0.5f, 0.8f) && drag.Move(0.5f, 0.5f) && drag.End(0.5f, 0.2f), "Correct extraction gesture");
+        Check(!drag.End(0.5f, 0.2f), "Cannot replay release");
+        drag.Begin(0.5f, 0.8f);
+        Check(!drag.Move(0.8f, 0.5f) && !drag.End(0.5f, 0.2f), "Leaving corridor invalidates drag");
+        drag.Begin(0.5f, 0.8f);
+        Check(!drag.End(0.5f, 0.5f), "Early release is not success");
+        drag.Begin(0.5f, 0.8f); drag.Reset();
+        Check(!drag.End(0.5f, 0.2f), "Tool switch cancels active gesture");
+        Check(!drag.Begin(float.NaN, 0.8f), "Invalid pointer rejected");
+        drag = new PrecisionDrag(0.28f, 0.3f, 0.72f, 0.3f, 0.075f);
+        Check(drag.Begin(0.28f, 0.3f) && drag.Move(0.5f, 0.3f) && drag.End(0.72f, 0.3f), "Horizontal stitch gesture");
+        SessionChecks.Run(Check);
+        SutureChecks.Run(Check);
+        GraceChecks.Run(Check);
+        BoardChecks.Run(Check);
+        FlowChecks.Run(Check);
+        FeedbackChecks.Run(Check);
+        FractureChecks.Run(Check);
+        GelChecks.Run(Check);
+        Console.WriteLine(checks + " procedure, gesture and session checks passed.");
     }
 }

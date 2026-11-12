@@ -1,63 +1,117 @@
 using BepInEx;
 using BepInEx.Configuration;
-using CUCoreLib.Helpers;
+using CasualtiesSurgery.Game;
+using HarmonyLib;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace CasualtiesSurgery
 {
-    [BepInPlugin("local.casualties.surgery", "Casualties Surgery", "0.2.0")]
-    // Match the BepInEx plugin version (1.1), not the DLL assembly version (1.1.0.0).
+    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.12.1")]
     [BepInDependency("net.cucorelib", "1.1")]
     public sealed class Plugin : BaseUnityPlugin
     {
-        private ConfigEntry<KeyCode> toggleKey;
-        private bool panelVisible;
-        private Rect panel = new Rect(40, 80, 540, 430);
-        private Vector2 scroll;
-
-        private void Awake()
+        static Plugin instance;
+        // Only our context menu needs custom input protection. The native minigame owns its input.
+        public static bool BlockInput => instance != null &&
+            ((instance.healthMenu != null && instance.healthMenu.IsOpen) || Time.frameCount <= instance.releaseFrame || instance.waitForRightRelease || (instance.active != null && instance.active.BlocksToolInput));
+        public static bool OperationVisible => instance != null && instance.active != null;
+        internal static SurgeryFeedback Feedback => instance?.feedback;
+        internal static SurgeryTool SelectedTool {get;set;} = SurgeryTool.Forceps;
+        SurgeryFeedback feedback;
+        HealthMenu healthMenu;
+        ISurgery active;
+        ConfigEntry<float> recovery, reduction, viewScale, handScale;
+        ConfigEntry<KeyCode> wheelKey;
+        Harmony harmony;
+        int releaseFrame = -1;
+        bool waitForRightRelease;
+        internal static void ProtectExitClick()
         {
-            toggleKey = Config.Bind("Interface", "ToggleKey", KeyCode.F8,
-                "Show or hide the surgery development panel.");
-            Logger.LogInfo("Casualties Surgery 0.2.0 loaded. Press " + toggleKey.Value + " for the development panel.");
-            Logger.LogInfo("Unity application version: " + Application.version);
+            if (instance == null) return;
+            instance.releaseFrame=Time.frameCount+1;
+            instance.waitForRightRelease=Input.GetMouseButton(1);
         }
 
-        private void Update()
+        void Awake()
         {
-            if (Input.GetKeyDown(toggleKey.Value))
-                panelVisible = !panelVisible;
-        }
-
-        private void OnGUI()
-        {
-            if (panelVisible)
-                panel = GUI.Window(GetInstanceID(), panel, DrawPanel, "Casualties Surgery - development");
-        }
-
-        private void DrawPanel(int windowId)
-        {
-            GUILayout.Label("CUCoreLib loaded | " + (GameBuildInfo.IsFullGame ? "Full game" : "Demo / other build"));
-            GUILayout.Label("Read-only injury inspector. No treatment or item consumption yet.");
-            GUILayout.Label("Planned: extraction + suture reduces bleeding and restores skin.");
-            scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(300));
-            Body body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
-            if (body == null || body.limbs == null)
-                GUILayout.Label("Enter a run to inspect your character's limbs.");
-            else
+            instance = this;
+            wheelKey = Config.Bind("Interface", "ToolWheelKey", KeyCode.Mouse1, "Hold to choose a tool at the cursor; release to select.");
+            viewScale = Config.Bind("Interface", "SurgeryScale", 0.4f,
+                new ConfigDescription("Wound assets, radial menu and hand scale. The native window stays full size.", new AcceptableValueRange<float>(0.3f, 0.8f)));
+            handScale=Config.Bind("Interface","HandScale",0.33f,
+                new ConfigDescription("Hand size independent of wound and wheel scale.",new AcceptableValueRange<float>(0.1f,0.4f)));
+            CUCoreLib.Registries.SaveRegistry.RegisterLimbProvider("local.casualties.surgery.fragment-board",new FragmentBoardStore());
+            CUCoreLib.Registries.SaveRegistry.RegisterLimbProvider("local.casualties.surgery.fracture",new FractureStore());
+            recovery = Config.Bind("Treatment", "SkinRecovery", 5f,
+                new ConfigDescription("Skin points restored per completed fragment and suture.", new AcceptableValueRange<float>(0.1f, 100f)));
+            reduction = Config.Bind("Treatment", "BleedingReduction", 1f,
+                new ConfigDescription("Bleeding points removed per completed fragment and suture.", new AcceptableValueRange<float>(0.1f, 100f)));
+            harmony = new Harmony("local.casualties.surgery");
+            try { harmony.PatchAll(typeof(Plugin).Assembly); }
+            catch (System.Exception error)
             {
-                foreach (Limb limb in body.limbs)
-                {
-                    if (limb == null) continue;
-                    string name = string.IsNullOrEmpty(limb.fullName) ? limb.name : limb.fullName;
-                    GUILayout.Label(string.Format("{0}: fragments {1} | skin {2:0.0}/100 | bleeding {3:0.00}{4}",
-                        name, limb.shrapnel, limb.skinHealth, limb.bleedAmount,
-                        limb.dismembered ? " | detached" : limb.prostheticInfo.hasProsthetic ? " | prosthetic" : ""));
-                }
+                harmony.UnpatchSelf(); instance = null; enabled = false;
+                Logger.LogError("Surgery hooks could not initialize; surgery disabled. " + error);
+                return;
             }
-            GUILayout.EndScrollView();
-            if (GUILayout.Button("Close (" + toggleKey.Value + ")")) panelVisible = false;
-            GUI.DragWindow(new Rect(0, 0, 540, 24));
+            feedback=gameObject.AddComponent<SurgeryFeedback>();
+            var soundVolume=Config.Bind("Audio","FeedbackVolume",0.7f,new ConfigDescription("Surgery feedback volume.",new AcceptableValueRange<float>(0,1)));
+            feedback.Initialize(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(typeof(Plugin).Assembly.Location),"Audio"),soundVolume.Value,text=>Logger.LogWarning(text));
+            healthMenu = new HealthMenu(BeginFromHealth, BeginFracture, () => releaseFrame = Time.frameCount + 1);
+            SceneManager.activeSceneChanged += SceneChanged;
+            Logger.LogInfo("Casualty Center 0.12.1 loaded. Health-dummy surgery uses the native minigame system.");
+        }
+        void BeginFromHealth(WoundView source, Limb limb)
+        {
+            if (!enabled || active != null || source == null || !source.gameObject.activeInHierarchy ||
+                OperationSession.Ineligible(source.body, limb) != null || MinigameBase.main == null) return;
+            var host = MinigameBase.main;
+            active = new NativeFragmentMinigame(host, source, limb, recovery.Value, reduction.Value, wheelKey.Value, viewScale.Value, handScale.Value,
+                text => Logger.LogInfo(text));
+            try
+            {
+                host.StartMinigame((Minigame)active, null);
+                if (!ReferenceEquals(host.currentMinigame, active))
+                { active.OnEnded(); active = null; return; }
+                active.RefreshGuide();
+            }
+            catch (System.Exception error)
+            {
+                active?.Finish("Surgery could not start."); active = null;
+                Logger.LogError("Native surgery startup failed: " + error);
+            }
+        }
+        void BeginFracture(WoundView source,Limb limb)
+        {
+            if(!enabled || active!=null || source==null || !source.gameObject.activeInHierarchy || FractureStore.Ineligible(source.body,limb)!=null || MinigameBase.main==null)return;
+            var host=MinigameBase.main;
+            active=new NativeFractureMinigame(host,source,limb,handScale.Value,wheelKey.Value,text=>Logger.LogInfo(text));
+            try {host.StartMinigame((Minigame)active,null);if(!ReferenceEquals(host.currentMinigame,active)){active.OnEnded();active=null;return;}active.RefreshGuide();}
+            catch(System.Exception error){active?.Finish("Fracture surgery startup failed.");active=null;Logger.LogError(error);}
+        }
+        void Update()
+        {
+            if (waitForRightRelease && !Input.GetMouseButton(1) && !Input.GetMouseButtonUp(1)) waitForRightRelease=false;
+            healthMenu?.Tick();
+            if (healthMenu != null && healthMenu.IsOpen && Input.GetKeyDown(KeyCode.Escape)) healthMenu.Close();
+            if (active == null) return;
+            if (active.Ended) { active = null; return; }
+            string reason = active.InvalidReason();
+            if (reason != null) { active.Finish(reason); active = null; }
+        }
+        void Stop()
+        {
+            healthMenu?.Close();
+            active?.Finish("Surgery cancelled; unfinished treatment grants no reward."); active = null;
+        }
+        void SceneChanged(Scene from, Scene to) { Stop(); healthMenu?.Dispose(); }
+        void OnApplicationFocus(bool focus) { if (!focus) Stop(); }
+        void OnDisable() { Stop(); healthMenu?.Dispose(); }
+        void OnDestroy()
+        {
+            Stop(); healthMenu?.Dispose(); SceneManager.activeSceneChanged -= SceneChanged;
+            harmony?.UnpatchSelf(); if(feedback!=null)Destroy(feedback); if (instance == this) instance = null;
         }
     }
 }
