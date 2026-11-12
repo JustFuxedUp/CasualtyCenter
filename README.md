@@ -5,7 +5,7 @@ A Trauma Center-inspired surgery mod for **Casualties: Unknown**, built on BepIn
 Disclaimer:
 Yes, this was heavily AI assisted for code. The branches literally are from a Codex folder. Do as you will with that information. All other assets are either some rip, handmade, or sourced from the game itself.
 
-**Installed baseline at handoff: 0.12.1. Local pending patch: 0.12.2 knife visual anchoring.** The patch built successfully but was not installed, committed or pushed when approval review hit a usage limit. See [current status](docs/STATUS.md) before resuming.
+**Installed baseline at handoff: 0.12.1. Local pending patch: 0.12.2 knife visual anchoring.** 
 
 ## Playable features
 
