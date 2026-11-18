@@ -85,5 +85,34 @@ static class PresentationChecks
         check(good==1 && poolState.Pools[0].First==0,"Delayed suction completion emits one Good and clears the host pool");
         check((string)JObject.Parse(poolPackets.Peek())["command"]["Action"]=="gesture.cancel","Completion discards excess held suction but preserves subsequent ordered input");
         poolClient.Receive(poolRouter.Handle(actor,poolPackets.Dequeue()));poolView.Dispose();
+        // Local release preview survives delayed/duplicate replies without predicting health.
+        var predictedBody=new Body();var predictedLimb=new Limb {body=predictedBody,skinHealth=80,shrapnel=2};predictedBody.limbs=new[]{predictedLimb};
+        var predictedRouter=new SurgeryHostRouter(c=>predictedBody,()=>now);var predictedPackets=new Queue<string>();
+        var predictedClient=new SurgeryClientSession(t=>{predictedPackets.Enqueue(t);return true;},()=>now);
+        var predictedView=new SurgeryPresentation(predictedClient,ProcedureKind.Fragment,()=>now);int scored=0;
+        predictedView.Result+=(a,r)=>{if(r.Feedback?.Rating==TreatmentRating.Scored)scored++;};
+        void DeliverPrediction(){predictedClient.Receive(predictedRouter.Handle(actor,predictedPackets.Dequeue()));}
+        predictedView.Begin(0);DeliverPrediction();
+        var release=new JObject {["site"]=0,["x"]=0,["y"]=-1};
+        predictedView.ReleaseFragment(release);now+=.09;
+        check(predictedView.PreviewingExtraction(0) && predictedView.ExtractionOpacity(0)>.4f && predictedView.ExtractionOpacity(0)<.6f && predictedView.ExtractionOpacity(1)==1,"Release preview fades immediately and belongs only to the selected fragment");
+        check(!predictedView.Fragments.Sites[0].Extracted && predictedLimb.shrapnel==2 && predictedLimb.skinHealth==80 && scored==0,"Predicted release cannot change clinical state, replica eligibility or completion feedback");
+        predictedView.Tick();DeliverPrediction();
+        check(!predictedView.PreviewingExtraction(0) && predictedView.ExtractionOpacity(0)==1,"Rejected release restores authoritative fragment presentation");
+        predictedView.Tick();DeliverPrediction(); // cancellation after rejection
+        predictedView.ReleaseFragment(release);predictedView.CancelInput();
+        check(!predictedView.PreviewingExtraction(0),"Cancelled queued release clears its preview");predictedView.Tick();DeliverPrediction();
+        predictedView.Submit("fragment.grip",new JObject {["site"]=0,["x"]=0,["y"]=.38});predictedView.Tick();DeliverPrediction();
+        check(predictedView.ReleaseFragment(release),"Valid local extraction can begin a new preview after rejection");predictedView.Tick();
+        string releasePacket=predictedPackets.Dequeue();string releaseReply=predictedRouter.Handle(actor,releasePacket);float afterRelease=predictedLimb.skinHealth;int shards=predictedLimb.shrapnel;
+        now+=.3;
+        check(predictedView.ExtractionOpacity(0)==0 && !predictedView.Fragments.Sites[0].Extracted && scored==0,"Delayed confirmation leaves a faded preview without claiming authoritative completion");
+        now+=1;predictedClient.Tick();
+        check(predictedPackets.Peek()==releasePacket,"Predicted extraction retries the original action identity");DeliverPrediction();predictedClient.Receive(releaseReply);
+        check(predictedView.Fragments.Sites[0].Extracted && scored==1 && predictedLimb.skinHealth==afterRelease && predictedLimb.shrapnel==shards,"Duplicate extraction confirmation reconciles once without duplicate effects or feedback");
+        predictedView.Tick();
+        check(!predictedView.PreviewingExtraction(0),"Confirmed finished fade retires its prediction");
+        predictedView.ReleaseFragment(new JObject {["site"]=1,["x"]=0,["y"]=-1});predictedView.Dispose();
+        check(!predictedView.PreviewingExtraction(1),"Disposed operation cannot retain another fragment preview");
     }
 }

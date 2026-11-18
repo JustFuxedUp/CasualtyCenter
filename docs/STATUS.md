@@ -2,7 +2,15 @@
 
 Updated: 2026-11-18. Verify Git/process/file state before acting.
 
-## 0.15.1 smoothing test - current state (2026-11-18)
+## Unreleased fragment prediction pass (2026-11-18)
+
+Latest scan found a mixed-version test: attached client log loaded 0.15.0 (line 69), host loaded 0.15.1 (line 56). Neither had startup refusals. Client recorded 10 suction, 8 fragment-gel, 2 wound-gel, 2 scalpel and 1 laceration-drag rejections; host recorded 1 laceration-drag rejection. Client also logged 298 Together CLIENT_Tutorial_GlobalState errors; no causal link to surgery established. Both complete logs are preserved under work/diagnostics/mixed-versions-20261118-093838. The new evidence does not test 0.15.1's client scalpel correction. Retest with matching versions before another anchor change.
+
+Implemented an unreleased presentation-only fragment extraction preview: a locally successful release retains the released shard position and fades it over 0.18 seconds instead of resetting it to the wound while waiting. Predictions belong to the exact queued release intent and site within the active presentation. Host confirmation reconciles them; rejection, cancellation, overflow, session failure and disposal clear previews. Predicted extraction does not alter wound eligibility, clinical state, scores or completion audio. Existing ordered gesture samples and wire protocol remain unchanged; this reduces perceived delay, not network round trips. Shared multi-surgeon sessions remain future work.
+
+Verification: 506 checks passed; plugin Release build zero warnings/errors; diff check passed. Added delayed/duplicate acknowledgement, rejected/cancelled preview, site isolation and disposal checks. Native hooks unchanged, so no Harmony harness rerun. Source version string remains 0.15.1 for this unreleased pass. Installed and packaged 0.15.1 remain unchanged at E08680A66513434F52C1F627332CBC5F343156E999B5A9D687C9FBBD7C1A98E2; the new build has NOT been installed or packaged. Next live acceptance: matching peer versions, both scalpel hand slots, immediate fragment fade under latency, rollback after rejected/cancelled release, exactly one host-confirmed score/sound.
+
+## 0.15.1 smoothing test - delivered state (2026-11-18)
 
 Supersedes the 0.15.0 delivery state below. Source/build/installed/package version is 0.15.1. Release build passed with zero warnings/errors; 496 procedure checks passed, including delayed suction completion queue pruning and expanded treatment reach. Native lifecycle hooks were not changed; the 23-check Harmony harness was not rerun for this pass. Live acceptance remains pending: use [TEST-0.15.1](TEST-0.15.1.md).
 

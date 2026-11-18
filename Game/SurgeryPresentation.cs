@@ -15,6 +15,22 @@ namespace CasualtiesSurgery.Game
         readonly Func<double> clock;
         readonly List<Intent> queued=new List<Intent>();
         Intent flight;
+        sealed class ExtractionPreview {public Intent Intent;public double Started;public bool Confirmed;}
+        readonly Dictionary<int,ExtractionPreview> extractions=new Dictionary<int,ExtractionPreview>();
+        const double ExtractionFadeSeconds=.18;
+        public bool PreviewingExtraction(int site)=>extractions.ContainsKey(site);
+        public float ExtractionOpacity(int site)=>extractions.TryGetValue(site,out var preview)?
+            (float)Math.Max(0,1-Math.Max(0,clock()-preview.Started)/ExtractionFadeSeconds):1;
+        // Scoped to this presentation/session and the exact queued release intent. Preview
+        // never changes a replica, clinical state, eligibility, score or completion sound.
+        public bool ReleaseFragment(JObject payload)
+        {
+            if(Kind!=ProcedureKind.Fragment || payload["site"]?.Type!=JTokenType.Integer)return false;
+            int site=(int)payload["site"];
+            if(extractions.ContainsKey(site) || Fragments?.Sites.Find(s=>s.Id==site && !s.Extracted && !s.Completed)==null)return false;
+            if(!Submit("fragment.release",payload))return false;
+            extractions.Add(site,new ExtractionPreview {Intent=queued[queued.Count-1],Started=clock()});return true;
+        }
         bool disposed;
         double sampledAt;
         public ProcedureKind Kind { get; }
@@ -52,7 +68,7 @@ namespace CasualtiesSurgery.Game
             catch(Exception e) when(e is JsonException || e is ArgumentException || e is NullReferenceException)
             {Failed("Invalid surgery snapshot; treatment stopped.");client.Release();}
         }
-        void Failed(string error) {Error=error;queued.Clear();flight=null;InputReset?.Invoke();}
+        void Failed(string error) {Error=error;queued.Clear();extractions.Clear();flight=null;InputReset?.Invoke();}
         void Completed(CommandReceipt receipt)
         {
             var done=flight;flight=null;if(done==null || disposed)return;
@@ -61,9 +77,15 @@ namespace CasualtiesSurgery.Game
             if(receipt.Status==CommandStatus.Rejected || receipt.Status==CommandStatus.StaleRevision || receipt.Status==CommandStatus.OutOfOrder)
             {
                 // Dependent drags/releases must not outlive a rejected grip or timer transition.
-                queued.Clear();InputReset?.Invoke();
+                queued.Clear();extractions.Clear();InputReset?.Invoke();
                 if(done.Action!="gesture.cancel")queued.Add(new Intent {Action="gesture.cancel",Payload=new JObject()});
             }
+            foreach(var pair in new List<KeyValuePair<int,ExtractionPreview>>(extractions))
+                if(ReferenceEquals(pair.Value.Intent,done))
+                {
+                    if(Fragments?.Sites.Find(s=>s.Id==pair.Key)?.Extracted==true)pair.Value.Confirmed=true;
+                    else extractions.Remove(pair.Key);
+                }
             // Held samples queued during the round trip must not target a now-completed
             // pool/wound. Keep other targets and ordered gesture evidence untouched.
             if(done.Key!=null && receipt.Feedback?.Rating==TreatmentRating.Good)
@@ -88,13 +110,15 @@ namespace CasualtiesSurgery.Game
         }
         public void CancelInput()
         {
-            queued.Clear();
+            queued.Clear();extractions.Clear();
             if(!disposed && Ready)queued.Add(new Intent {Action="gesture.cancel",Payload=new JObject()});
         }
         public void Tick()
         {
             if(disposed || Error!=null)return;
             if(!client.Active && !client.Busy && Sample>0) {Failed("Surgery connection ended; progress remains on the host.");return;}
+            foreach(var pair in new List<KeyValuePair<int,ExtractionPreview>>(extractions))
+                if(pair.Value.Confirmed && clock()-pair.Value.Started>=ExtractionFadeSeconds)extractions.Remove(pair.Key);
             if(client.Busy || !Ready)return;
             if(queued.Count>0)
             {
@@ -105,7 +129,7 @@ namespace CasualtiesSurgery.Game
         }
         public void Dispose()
         {
-            if(disposed)return;disposed=true;queued.Clear();
+            if(disposed)return;disposed=true;queued.Clear();extractions.Clear();
             client.SnapshotChanged-=Snapshot;client.Completed-=Completed;client.Failed-=Failed;
             client.Release();
         }

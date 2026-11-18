@@ -212,9 +212,12 @@ namespace CasualtiesSurgery.Game
                 {
                     var site=B.Sites.Find(s=>s.Id==part.Id);bool visible=site!=null && !site.Completed;
                     part.Wound.gameObject.SetActive(visible);part.Pools.Bind(site.Pools);part.Pools.Refresh(visible);
-                    part.Fragment.gameObject.SetActive(visible && !site.Extracted);
+                    bool preview=presentation.PreviewingExtraction(part.Id);
+                    float opacity=presentation.ExtractionOpacity(part.Id);
+                    part.Fragment.gameObject.SetActive(visible && (preview?opacity>0:!site.Extracted));
+                    part.Fragment.GetComponent<Image>().color=new Color(1,1,1,opacity);
                     part.Wound.GetComponent<Image>().color=Color.Lerp(new Color(.48f,.09f,.12f),new Color(.25f,.8f,.7f),site.GelMl/GelRules.FragmentMl);
-                    if(grip!=part.Id){part.Fragment.anchoredPosition=part.FragmentOrigin;part.Fragment.GetComponent<Image>().maskable=true;}
+                    if(grip!=part.Id && !preview){part.Fragment.anchoredPosition=part.FragmentOrigin;part.Fragment.GetComponent<Image>().maskable=true;}
                 }
                 else
                 {

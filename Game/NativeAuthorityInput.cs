@@ -161,7 +161,7 @@ namespace CasualtiesSurgery.Game
             if(host.handStartedClicking)
                 foreach(var part in parts)
                 {
-                    var site=B.Sites.Find(s=>s.Id==part.Id);if(site.Completed || site.Extracted || site.Pools.Blocking)continue;
+                    var site=B.Sites.Find(s=>s.Id==part.Id);if(site.Completed || site.Extracted || site.Pools.Blocking || presentation.PreviewingExtraction(part.Id))continue;
                     var point=ExtractionPoint(part,contact);if(!FragmentPull.CanGrip(point.x,point.y))continue;
                     grip=part.Id;pull=new FragmentPull(2,(part.Layout.Length*.84f*.35f+8)/part.Layout.Length,.005f);pull.Begin(point.x,point.y);
                     grabOffset=part.Fragment.position-contact;presentation.Submit("fragment.grip",TargetPoint(grip,point));Plugin.Feedback?.Grab();break;
@@ -175,7 +175,16 @@ namespace CasualtiesSurgery.Game
             // Preserve each sampled extraction point: backtracking/deviation contribute to
             // the production score. Overflow cancels rather than discarding a release.
             if(released || !success || becameLoose || dragSeconds>=.08f)
-            {presentation.Submit(released?"fragment.release":"fragment.drag",TargetPoint(grip,next));dragSeconds=0;}
+            {
+                if(released && success)
+                {
+                    selected.Fragment.position=contact+grabOffset;
+                    selected.Fragment.GetComponent<UnityEngine.UI.Image>().maskable=false;
+                    presentation.ReleaseFragment(TargetPoint(grip,next));
+                }
+                else presentation.Submit(released?"fragment.release":"fragment.drag",TargetPoint(grip,next));
+                dragSeconds=0;
+            }
             if(pull==null)return; // Queue overflow may have synchronously cancelled this gesture.
             if(pull.Active)
             {

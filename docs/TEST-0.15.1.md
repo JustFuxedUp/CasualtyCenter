@@ -9,3 +9,9 @@ Install the matching DLL on both peers with the game closed; keep exactly one su
 5. Start treatment farther apart (up to four world units instead of two). During treatment, movement is allowed up to three units from either participant's starting position, subject to the four-unit separation and obstruction checks. Walking away or placing a wall between participants must still stop treatment.
 
 Report role, procedure/limb, selected tool and approximate timestamp for each failure. Preserve BOTH complete BepInEx/LogOutput.log files before restarting; include screenshots for markers/knife/fading. These changes do not enable multiple surgeons on one patient. Tutorial-limited death/unconsciousness cases remain for a normal test map.
+
+## Before the next retest
+
+Verify the startup line in BOTH logs says the intended version before testing. The latest supplied pair actually loaded client 0.15.0 and host 0.15.1, so the client-side 0.15.1 changes were not exercised.
+
+The unreleased extraction-preview pass additionally needs: release a loose shard under client latency and verify it fades at the release position immediately, rather than jumping into the wound; host score/sound should occur once on confirmation. Interrupt or cancel a pending extraction and verify host progress remains authoritative. Do not expect this new preview in the already distributed 0.15.1 package.
