@@ -113,3 +113,9 @@ Remaining acceptance work:
 | Presentation under latency | Ratings/sounds once; loops/strokes stop; native contact unchanged |
 
 No inventory consumption is introduced. Future supplies must commit through the same authority boundary.
+
+## 0.15.1 smoothing contract
+
+Treatment reach is four world units, with a three-unit movement allowance for each participant; obstruction and host access checks still apply. Marker snapshots tolerate six seconds between refreshes and clear on selection changes or failed inspections. Local suction preview changes opacity only; completion remains host-authoritative. Good completion removes queued held samples for the completed target while preserving other input.
+
+The installed Together assembly exposes ScavPlayer.playerName. Consent prompts use it, escaping rich-text delimiters. A server reply of type surgery.consent carries the roster patient ID and approved boolean after permission validation; it offers a Proceed button only for the pending patient/view/operator. The notification grants no authority: proceeding performs normal access and lease checks. The verified native Blade sprite is handSprites[13], used by the knife mesh correction instead of an asset-name test. Live acceptance: [TEST-0.15.1](TEST-0.15.1.md).

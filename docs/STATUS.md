@@ -2,7 +2,17 @@
 
 Updated: 2026-11-18. Verify Git/process/file state before acting.
 
-## Exact stopping point
+## 0.15.1 smoothing test - current state (2026-11-18)
+
+Supersedes the 0.15.0 delivery state below. Source/build/installed/package version is 0.15.1. Release build passed with zero warnings/errors; 496 procedure checks passed, including delayed suction completion queue pruning and expanded treatment reach. Native lifecycle hooks were not changed; the 23-check Harmony harness was not rerun for this pass. Live acceptance remains pending: use [TEST-0.15.1](TEST-0.15.1.md).
+
+Changes: marker snapshot tolerance increased from two to six seconds (selection/failure invalidation retained); knife correction identifies the native Blade sprite by reference instead of its asset name; suction opacity previews locally without clearing a host pool, and Good completion removes redundant queued held samples for that target. Consent uses verified ScavPlayer.playerName and an authenticated server notification to offer a Proceed popup; proceeding still checks host permission. Treatment reach is four units; participant movement allowance is three. No same-patient concurrent surgery support added.
+
+Installed with game closed into the single existing plugin folder; DLL and archive DLL SHA-256: E08680A66513434F52C1F627332CBC5F343156E999B5A9D687C9FBBD7C1A98E2. Backup: work/backups/CasualtiesSurgery-0.15.0-before-0.15.1-20261118-055038.dll. Client package CasualtyCenter-0.15.1-multiplayer-test.zip is in the established outputs directory, includes eight WAVs and TESTING.md; archive hash 50503D6F48836B68D32661D6571FF311F1B1BB6C7C96AC320B94FF29AEED991E. Existing config/audio retained. Host log preserved under work/diagnostics/smoothing-0.15.0-20261118-055038; Downloads/LogOutput (4).log was read for diagnosis but no longer existed when archiving was attempted.
+
+Work remains on codex/development; check Git for commit/push state. No merge or public release. The marker/knife/fade fixes and approval popup need host/client rendering checks; passing isolated tests does not certify them.
+
+## Exact stopping point (historical 0.15.0 delivery)
 
 | Item | State |
 | --- | --- |

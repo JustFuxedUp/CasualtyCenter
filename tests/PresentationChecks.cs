@@ -70,5 +70,20 @@ static class PresentationChecks
         now+=.25;localView.Submit("scalpel.sample",sample);localView.Tick();now+=.25;localView.Submit("scalpel.sample",sample);localView.Tick();
         check(fragment.skinHealth<80 && feedback.Feedback?.Rating==TreatmentRating.Mistake,"Fragment authority view preserves scalpel mistake behavior through the shared command path");
         localView.Dispose();
+        var poolBody=new Body();var poolLimb=new Limb {body=poolBody,broken=true,skinHealth=80,boneHealTimer=100};poolBody.limbs=new[]{poolLimb};
+        var poolState=FractureStore.Get(poolLimb);poolState.Pools[0].First=.25f;poolState.Pools[0].Rolled=true;poolState.Pools[0].FirstAngle=0;
+        var poolRouter=new SurgeryHostRouter(c=>poolBody,()=>now);var poolPackets=new Queue<string>();
+        var poolClient=new SurgeryClientSession(t=>{poolPackets.Enqueue(t);return true;},()=>now);
+        var poolView=new SurgeryPresentation(poolClient,ProcedureKind.Fracture,()=>now);int good=0;
+        poolView.Result+=(a,r)=>{if(r.Feedback?.Rating==TreatmentRating.Good)good++;};
+        poolView.Begin(0);poolClient.Receive(poolRouter.Handle(actor,poolPackets.Dequeue()));now+=.3;
+        var suction=new JObject {["wound"]=-1,["slot"]=0,["x"]=0,["y"]=0,["seconds"]=.25};
+        poolView.Submit("pool.suction",suction,"suction:-1:0");poolView.Tick();
+        poolView.Submit("pool.suction",suction,"suction:-1:0");
+        poolView.Submit("gesture.cancel",new JObject());
+        poolClient.Receive(poolRouter.Handle(actor,poolPackets.Dequeue()));poolView.Tick();
+        check(good==1 && poolState.Pools[0].First==0,"Delayed suction completion emits one Good and clears the host pool");
+        check((string)JObject.Parse(poolPackets.Peek())["command"]["Action"]=="gesture.cancel","Completion discards excess held suction but preserves subsequent ordered input");
+        poolClient.Receive(poolRouter.Handle(actor,poolPackets.Dequeue()));poolView.Dispose();
     }
 }

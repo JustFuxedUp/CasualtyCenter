@@ -95,8 +95,8 @@ namespace CasualtiesSurgery.Game
             if(Ended)return "Operation ended.";
             if(host==null || MinigameBase.main!=host || !ReferenceEquals(host.currentMinigame,this))return "Native operation closed.";
             if(source==null || !source.gameObject.activeInHierarchy || source.body!=body || PlayerCamera.main==null || PlayerCamera.main.body!=operatorBody)return "Patient or operator view changed.";
-            if(operatorBody==null || !operatorBody.alive || !operatorBody.conscious || operatorBody.gameObject.scene.handle!=scene || Vector3.Distance(operatorOrigin,operatorBody.transform.position)>1.5f || !SurgeryTreatmentAccess.Nearby(operatorBody,body,2))return "Operator unavailable or moved away.";
-            if(body==null || body.gameObject.scene.handle!=scene || Vector3.Distance(origin,body.transform.position)>1.5f)return "Patient moved or changed scene.";
+            if(operatorBody==null || !operatorBody.alive || !operatorBody.conscious || operatorBody.gameObject.scene.handle!=scene || Vector3.Distance(operatorOrigin,operatorBody.transform.position)>SurgeryTreatmentAccess.MovementLimit || !SurgeryTreatmentAccess.Nearby(operatorBody,body,SurgeryTreatmentAccess.Reach))return "Operator unavailable or moved away.";
+            if(body==null || body.gameObject.scene.handle!=scene || Vector3.Distance(origin,body.transform.position)>SurgeryTreatmentAccess.MovementLimit)return "Patient moved or changed scene.";
             return presentation.Error ?? OperationSession.ClinicalIneligible(body,limb,false);
         }
         public override void Update(List<RaycastResult> hits)

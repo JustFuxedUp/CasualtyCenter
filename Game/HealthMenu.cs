@@ -24,6 +24,7 @@ namespace CasualtiesSurgery.Game
         Body patient;
         Limb limb;
         string entryNotice;
+        Action proceed;
         public bool IsOpen => overlay != null && overlay.activeSelf;
 
         public HealthMenu(Action<WoundView, Limb> begin, Action<WoundView,Limb> beginFracture, Action<WoundView,Limb> beginInternal, Action dismiss)
@@ -150,6 +151,15 @@ namespace CasualtiesSurgery.Game
 
         void Refresh()
         {
+            if(proceed!=null)
+            {
+                title.text="SURGERY APPROVED";procedure.interactable=true;
+                procedure.GetComponentInChildren<TextMeshProUGUI>().text="Proceed with surgery";
+                fracture.gameObject.SetActive(false);internalBleeding.gameObject.SetActive(false);
+                reason.rectTransform.anchoredPosition=new Vector2(12,-100);reason.text=entryNotice;
+                ((RectTransform)back.transform).anchoredPosition=new Vector2(12,-186);return;
+            }
+            fracture.gameObject.SetActive(true);procedure.GetComponentInChildren<TextMeshProUGUI>().text="Extract fragment + suture";
             string unavailable = Plugin.EntryReason(patient, limb,ProcedureKind.Fragment);
             title.text = "SURGERY / " + (limb != null ? limb.fullName : "No limb")+(HasOpenIncision(limb)?" / OPEN":"");
             procedure.interactable = unavailable == null;
@@ -169,6 +179,11 @@ namespace CasualtiesSurgery.Game
                 ? "Free test tools. World stays live." : showInternal ? internalReason : fractureReason;
             if(entryNotice!=null)reason.text=entryNotice;
         }
+        internal void ShowProceed(WoundView source,Limb selected,Action action)
+        {
+            ShowEntryNotice(source,selected,"Patient approved treatment. Proceed when ready; permission is checked again on entry.");
+            if(IsOpen && view==source && limb==selected){proceed=action;Refresh();}
+        }
         internal void ShowEntryNotice(WoundView source,Limb selected,string message)
         {
             if(view==null || source!=view || !view.gameObject.activeInHierarchy || selected==null || selected.body!=view.body)return;
@@ -179,6 +194,7 @@ namespace CasualtiesSurgery.Game
         }
         void Start()
         {
+            if(proceed!=null){var action=proceed;Close();action();return;}
             // Revalidate at click time, even if the button was enabled last frame.
             if(!ValidateClick(ProcedureKind.Fragment))return;
             WoundView source = view; Limb selected = limb;
@@ -199,7 +215,7 @@ namespace CasualtiesSurgery.Game
         }
         bool ValidateClick(ProcedureKind kind)
         {
-            entryNotice=null;
+            entryNotice=null;proceed=null;
             Plugin.LogEntry("clicked "+kind+"; limb="+(patient?.limbs!=null?Array.IndexOf(patient.limbs,limb):-1));
             string refusal=view==null?"No health view.":!view.gameObject.activeInHierarchy?"Health view inactive.":view.body!=patient?"Patient changed.":Plugin.EntryReason(patient,limb,kind);
             if(refusal==null){Plugin.LogEntry("menu validation accepted; closing menu and dispatching "+kind);return true;}
@@ -210,7 +226,7 @@ namespace CasualtiesSurgery.Game
             bool wasOpen = IsOpen;
             if (overlay != null) overlay.SetActive(false);
             patient = null; limb = null;
-            entryNotice=null;
+            entryNotice=null;proceed=null;
             if (wasOpen) dismiss();
         }
         public void Dispose()

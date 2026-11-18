@@ -33,7 +33,7 @@ static class SharedTreatmentChecks
         check(skin<80 && surgeon.limbs[0].skinHealth==90 && ReferenceEquals(router.ResultPatient(applied),patient),"Remote action changes and identifies the patient, never the operator");
         var retry=JObject.Parse(router.Handle(surgeonId,cut));client.Receive(retry.ToString());
         check((int)retry["receipt"]["Status"]==(int)CommandStatus.Duplicate && limb.skinHealth==skin,"Lost remote action acknowledgement cannot charge the patient twice");
-        surgeon.transform.position=new UnityEngine.Vector3 {x=1.6f};router.Tick();
+        surgeon.transform.position=new UnityEngine.Vector3 {x=3.1f};router.Tick();
         check((int)JObject.Parse(router.Handle(surgeonId,cut))["receipt"]["Status"]==(int)CommandStatus.Unauthorized && limb.skinHealth==skin,"Operator movement invalidates lease and even duplicate commands");
         surgeon.transform.position=new UnityEngine.Vector3();client.Reset();client.Begin(ProcedureKind.Fracture,0,"7");Deliver();
         check(!client.Active && prompts==3,"Interrupted remote operation requires renewed consent");
@@ -54,6 +54,11 @@ static class SharedTreatmentChecks
         patient.conscious=false;livePatient=null;
         check(policy.Check(surgeonId,patient)!=null,"Unconscious exception never bypasses patient disconnect");livePatient=patient;
         surgeon.conscious=false;check(policy.Check(surgeonId,patient)!=null,"Unconscious operator cannot treat an unconscious patient");surgeon.conscious=true;
+        patient.conscious=false;patient.transform.position=new UnityEngine.Vector3 {x=3.5f};
+        check(policy.Check(surgeonId,patient)==null,"Remote treatment permits the expanded reach");
+        patient.transform.position=new UnityEngine.Vector3 {x=4.1f};
+        check(policy.Check(surgeonId,patient)!=null,"Expanded reach still rejects distant treatment");
+        patient.transform.position=new UnityEngine.Vector3();
         patient.alive=false;check(policy.Check(surgeonId,patient)!=null,"Consent never permits treatment of a dead patient");
     }
 }

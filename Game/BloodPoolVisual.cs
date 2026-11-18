@@ -10,6 +10,7 @@ namespace CasualtiesSurgery.Game
         readonly RectTransform field;
         readonly MinigameBase host;
         readonly SurgeryActions actions;
+        readonly float[] preview=new float[2];
         readonly Image[] squares = new Image[2];
 
         public BloodPoolVisual(BloodPools state, RectTransform field, Vector2 center, MinigameBase host, SurgeryActions actions)
@@ -41,10 +42,16 @@ namespace CasualtiesSurgery.Game
                 if (active)
                     squares[i].rectTransform.localEulerAngles = new Vector3(0, 0,
                         (i == 0 ? state.FirstAngle : state.SecondAngle) ?? 0);
-                squares[i].color = new Color(.78f, .055f, .12f, Mathf.Lerp(.18f, .65f, remaining / BloodPools.ClearSeconds));
+                squares[i].color = new Color(.78f, .055f, .12f, Mathf.Lerp(.18f, .65f, Mathf.Max(.025f,remaining-preview[i]) / BloodPools.ClearSeconds));
             }
         }
-        public void Bind(BloodPools value) { state=value; }
+        public void Bind(BloodPools value)
+        {
+            for(int i=0;i<2;i++)preview[i]=Mathf.Max(0,preview[i]-Mathf.Max(0,state.Remaining(i)-value.Remaining(i)));
+            state=value;
+        }
+        public void Preview(int slot,float seconds) {if(slot>=0 && slot<2)preview[slot]=Mathf.Min(state.Remaining(slot),preview[slot]+seconds);}
+        public void ResetPreview() {preview[0]=preview[1]=0;}
 
         public float Distance(Vector3 world, out int index)
         {

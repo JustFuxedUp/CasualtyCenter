@@ -64,6 +64,10 @@ namespace CasualtiesSurgery.Game
                 queued.Clear();InputReset?.Invoke();
                 if(done.Action!="gesture.cancel")queued.Add(new Intent {Action="gesture.cancel",Payload=new JObject()});
             }
+            // Held samples queued during the round trip must not target a now-completed
+            // pool/wound. Keep other targets and ordered gesture evidence untouched.
+            if(done.Key!=null && receipt.Feedback?.Rating==TreatmentRating.Good)
+                queued.RemoveAll(intent=>intent.Key==done.Key);
             Result?.Invoke(done.Action,receipt);
         }
         // Coalesce only replaceable samples; grip, terminal gesture, release and stitch

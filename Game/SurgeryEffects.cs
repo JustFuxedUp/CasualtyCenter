@@ -18,7 +18,7 @@ namespace CasualtiesSurgery.Game
             if(!IsActive() || Plugin.SelectedTool!=SurgeryTool.Scalpel ||
                 !(MinigameBase.main?.currentMinigame is ISurgery surgery) || surgery.Ended)return;
             var image=graphic as Image;
-            if(image==null || image.sprite==null || !image.sprite.name.StartsWith("handSharp"))return;
+            if(image==null || image.sprite==null || MinigameBase.main.handSprites==null || MinigameBase.main.handSprites.Length<=13 || image.sprite!=MinigameBase.main.handSprites[13])return;
             var rect=image.GetPixelAdjustedRect();
             if(image.preserveAspect)
             {

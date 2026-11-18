@@ -8,7 +8,7 @@ using UnityEngine.SceneManagement;
 
 namespace CasualtiesSurgery
 {
-    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.15.0")]
+    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.15.1")]
     [BepInDependency("net.cucorelib", "1.1")]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -35,6 +35,27 @@ namespace CasualtiesSurgery
         double nextOverview;
         double overviewReceivedAt;
         string overviewTarget;
+        WoundView consentSource;
+        Limb consentLimb;
+        Body consentOperator,consentPatient;
+        ProcedureKind consentKind;
+        string consentTarget;
+        double consentUntil;
+        bool consentApproved;
+        void ConsentAnswered(string target,bool approved)
+        {if(target==consentTarget && Time.unscaledTimeAsDouble<consentUntil)consentApproved=approved;}
+        void OfferApprovedSurgery()
+        {
+            if(consentSource==null || Time.unscaledTimeAsDouble>=consentUntil || PlayerCamera.main==null ||
+                PlayerCamera.main.body!=consentOperator || !consentSource.gameObject.activeInHierarchy || consentSource.body!=consentPatient)
+            {consentSource=null;consentApproved=false;return;}
+            if(!consentApproved || active!=null || network?.Client.Busy==true || network?.Client.Active==true)return;
+            var source=consentSource;var limb=consentLimb;var kind=consentKind;var patient=consentPatient;var actor=consentOperator;
+            consentApproved=false;consentSource=null;
+            healthMenu.ShowProceed(source,limb,()=>{
+                if(source!=null && source.body==patient && PlayerCamera.main!=null && PlayerCamera.main.body==actor)BeginAuthority(source,limb,kind);
+            });
+        }
         readonly System.Guid offlineConnection=System.Guid.NewGuid();
         bool previousMultiplayer;
         bool previousAuthorityViews;
@@ -45,7 +66,7 @@ namespace CasualtiesSurgery
         {
             if(!AuthorityViews || limb==null)return fallback;
             if(CUCoreLib.Networking.MultiplayerApi.IsRunning)fallback=false;
-            if(limb.body!=instance.overviewBody || instance.patientOverview==null || Time.unscaledTimeAsDouble-instance.overviewReceivedAt>2)return fallback;
+            if(limb.body!=instance.overviewBody || instance.patientOverview==null || Time.unscaledTimeAsDouble-instance.overviewReceivedAt>6)return fallback;
             int index=System.Array.IndexOf(limb.body.limbs,limb);
             var token=index>=0 && index<instance.patientOverview.Count?instance.patientOverview[index]?[name]:null;
             return token?.Type==Newtonsoft.Json.Linq.JTokenType.Boolean?(bool)token:fallback;
@@ -71,7 +92,7 @@ namespace CasualtiesSurgery
             var actor=PlayerCamera.main!=null?PlayerCamera.main.body:null;
             if(actor==null || !actor.alive || !actor.conscious)return "Operator must be alive and conscious.";
             if(actor!=patient && (!CUCoreLib.Networking.MultiplayerApi.IsRunning || instance.network?.InspectionTarget(patient)==null))return "No connected patient.";
-            if(!SurgeryTreatmentAccess.Nearby(actor,patient,2))return "Move closer to the patient.";
+            if(!SurgeryTreatmentAccess.Nearby(actor,patient,SurgeryTreatmentAccess.Reach))return "Move closer to the patient.";
             string reason=OperationSession.ClinicalIneligible(patient,limb,false);if(reason!=null)return reason;
             if(MinigameBase.main==null || MinigameBase.main.currentMinigame!=null)return "Finish the current minigame first.";
             if(CUCoreLib.Networking.MultiplayerApi.IsRunning && !(instance.network?.Available ?? false))return "Surgery transport is not ready; check host health-sync settings.";
@@ -119,7 +140,7 @@ namespace CasualtiesSurgery
             developmentTransport=Config.Bind("Development","EnableSurgeryTransport",false,"Enable the experimental authority transport for integration testing. Does not enable multiplayer surgery UI.");
             authorityViews=Config.Bind("Development","EnableAuthorityViews",false,"Opt in to the multiplayer surgery test views. Also enables transport; in singleplayer uses the same command handlers locally. Keep disabled for the stable local views.");
             SceneManager.activeSceneChanged += SceneChanged;
-            Logger.LogInfo("Casualty Center 0.15.0 loaded. EnableAuthorityViews="+authorityViews.Value+", EnableSurgeryTransport="+developmentTransport.Value+"; config="+Config.ConfigFilePath);
+            Logger.LogInfo("Casualty Center 0.15.1 loaded. EnableAuthorityViews="+authorityViews.Value+", EnableSurgeryTransport="+developmentTransport.Value+"; config="+Config.ConfigFilePath);
         }
         void BeginFromHealth(WoundView source, Limb limb)
         {
@@ -191,6 +212,8 @@ namespace CasualtiesSurgery
             if(client==null || client.Active || client.Busy){LogEntry("client unavailable or settling: exists="+(client!=null)+", active="+client?.Active+", busy="+client?.Busy);return;}
             var host=MinigameBase.main;
             string target=source.body==PlayerCamera.main.body?null:network.InspectionTarget(source.body);
+            consentSource=target==null?null:source;consentLimb=limb;consentKind=kind;consentTarget=target;
+            consentPatient=source.body;consentOperator=PlayerCamera.main.body;consentUntil=Time.unscaledTimeAsDouble+60;consentApproved=false;
             active=new NativeAuthorityMinigame(host,source,limb,kind,client,handScale.Value,viewScale.Value,wheelKey.Value,text=>Logger.LogInfo(text),target);
             try {
                 LogEntry("calling native StartMinigame; current="+(host.currentMinigame?.GetType().FullName??"none"));
@@ -210,7 +233,7 @@ namespace CasualtiesSurgery
             if(previousMultiplayer!=multiplayer){Stop();offlineClient?.Reset();offlineOverview?.Reset();offlineClient=null;offlineOverview=null;offlineHost=null;patientOverview=null;overviewBody=null;previousMultiplayer=multiplayer;}
             if(developmentTransport.Value || AuthorityViews)
             {
-                if(network==null){network=new SurgeryTogetherRuntime(recovery.Value,reduction.Value,viewScale.Value,text=>Logger.LogWarning(text));network.Overview.OverviewReceived+=SetOverview;network.Overview.Failed+=reason=>patientOverview=null;}
+                if(network==null){network=new SurgeryTogetherRuntime(recovery.Value,reduction.Value,viewScale.Value,text=>Logger.LogWarning(text));network.ConsentAnswered+=ConsentAnswered;network.Overview.OverviewReceived+=SetOverview;network.Overview.Failed+=reason=>patientOverview=null;}
                 network.Tick();
             }
             else if(network!=null) {network.Dispose();network=null;}
@@ -221,7 +244,7 @@ namespace CasualtiesSurgery
             if (Time.timeScale > 0 && PlayerCamera.main != null && !multiplayer && !AuthorityViews)
                 InternalBleedingStore.Tick(PlayerCamera.main.body, Time.unscaledDeltaTime);
             if (waitForRightRelease && !Input.GetMouseButton(1) && !Input.GetMouseButtonUp(1)) waitForRightRelease=false;
-            healthMenu?.Tick();
+            healthMenu?.Tick();OfferApprovedSurgery();
             if (healthMenu != null && healthMenu.IsOpen && Input.GetKeyDown(KeyCode.Escape)) healthMenu.Close();
             if (active == null) return;
             if (active.Ended) { active = null; return; }

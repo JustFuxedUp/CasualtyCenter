@@ -34,6 +34,7 @@ namespace CasualtiesSurgery.Game
             grip=-1;pull?.Reset();pull=null;stroke=null;candidates.Clear();thread?.Clear();
             heldSeconds=dragSeconds=strokeSeconds=0;cutting=false;ready=false;
             effects?.Stop();Plugin.Feedback?.StopLoop(this);
+            outerPool?.ResetPreview();foreach(var part in parts)part.Pools?.ResetPreview();
             if(notify)presentation.CancelInput();
         }
         void InputStep(Vector3 contact,Vector2 point)
@@ -76,7 +77,8 @@ namespace CasualtiesSurgery.Game
             }
             if(slot<0)return;
             var payload=TargetPoint(target,point);payload["slot"]=slot;payload["seconds"]=seconds;
-            presentation.Submit("pool.suction",payload,"suction:"+target+":"+slot);
+            if(presentation.Submit("pool.suction",payload,"suction:"+target+":"+slot))
+                (target<0?outerPool:parts.Find(p=>p.Id==target)?.Pools)?.Preview(slot,seconds);
         }
         void Gel(Vector3 contact,Vector2 point,float seconds)
         {

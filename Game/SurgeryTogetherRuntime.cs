@@ -23,7 +23,8 @@ namespace CasualtiesSurgery.Game
         SurgeryTreatmentAccess permission;
         FieldInfo rules,consentForFeeding;
         MethodInfo promptPlayer,unobstructed;
-        FieldInfo players,body;
+        FieldInfo players,body,playerName;
+        public event Action<string,bool> ConsentAnswered;
         Type netBody;
         MethodInfo queueHealth,canSync;
         bool running,server,failed;
@@ -59,10 +60,19 @@ namespace CasualtiesSurgery.Game
         {
             if(!(players.GetValue(null) is IDictionary live))throw new InvalidOperationException("Player roster unavailable.");
             object recipient=live.Values.Cast<object>().FirstOrDefault(p=>ReferenceEquals(body.GetValue(p),patient));
+            object surgeon=live.Values.Cast<object>().FirstOrDefault(p=>ReferenceEquals(body.GetValue(p),actor));
             string actorId=InspectionTarget(actor);
             if(recipient==null || actorId==null)throw new InvalidOperationException("Treatment participant left.");
             log?.Invoke("Surgery consent requested for remote treatment.");
-            promptPlayer.Invoke(null,new object[]{recipient,"SURGERY_OFFER","Surgery request","<body:"+actorId+"> wants to operate on you. Allow this operation?",new Action<byte>(value=>{answer(value==0);log?.Invoke("Surgery consent answer: "+(value==0?"accepted":"declined"));})});
+            string name=playerName.GetValue(surgeon) as string;
+            name=string.IsNullOrWhiteSpace(name)?"Player "+actorId:name.Replace("<","(").Replace(">",")");
+            promptPlayer.Invoke(null,new object[]{recipient,"SURGERY_OFFER","Surgery request",name+" wants to operate on you. Allow this operation?",new Action<byte>(value=>{
+                answer(value==0);
+                bool approved=value==0 && connections.TryGetValue(surgeon,out Guid connection) && permission?.Check(connection,patient)==null;
+                string target=InspectionTarget(patient);
+                if(target!=null && transport!=null)transport.SendReply(surgeon,new JObject {["type"]="surgery.consent",["patient"]=target,["approved"]=approved}.ToString(Newtonsoft.Json.Formatting.None));
+                log?.Invoke("Surgery consent answer: "+(approved?"accepted":"declined or expired"));
+            })});
         }
         public void Tick()
         {
@@ -79,10 +89,10 @@ namespace CasualtiesSurgery.Game
                     TogetherMinigameCompatibility.Log=log;
                     try {TogetherMinigameCompatibility.ObserveStartup(new HarmonyLib.Harmony("local.casualties.surgery"),assembly);}
                     catch(Exception observationError){log?.Invoke("Surgery startup observation unavailable: "+observationError.Message);}
-                    var player=assembly.GetType("Together.ScavPlayer",true);players=player.GetField("ClientIdToPlayerDict");body=player.GetField("body");
+                    var player=assembly.GetType("Together.ScavPlayer",true);players=player.GetField("ClientIdToPlayerDict");body=player.GetField("body");playerName=player.GetField("playerName");
                     var medical=assembly.GetType("Together.MedicalSync",true);netBody=assembly.GetType("Together.NetBody",true);
                     queueHealth=medical.GetMethod("Server_QueueSendCharacterHealth",new[]{netBody,typeof(bool)});canSync=medical.GetMethod("CanSyncHealth",Type.EmptyTypes);
-                    if(players==null || body==null || queueHealth==null || canSync==null)throw new NotSupportedException("Together identity or health API mismatch.");
+                    if(players==null || playerName?.FieldType!=typeof(string) || body==null || queueHealth==null || canSync==null)throw new NotSupportedException("Together identity or health API mismatch.");
                     rules=assembly.GetType("Together.Multiplayer",true).GetField("rules");
                     consentForFeeding=rules?.FieldType.GetField("ConsentForFeeding");
                     promptPlayer=assembly.GetType("Together.ServerMain",true).GetMethod("PromptPlayer",new[]{player,typeof(string),typeof(string),typeof(string),typeof(Action<byte>)});
@@ -91,7 +101,7 @@ namespace CasualtiesSurgery.Game
                     permission=new SurgeryTreatmentAccess(Resolve,p=>InspectionTarget(p)!=null,()=> (bool)consentForFeeding.GetValue(rules.GetValue(null)),PromptConsent,()=>Time.unscaledTimeAsDouble,
                         (a,b)=>(bool)unobstructed.Invoke(null,new object[]{a,b,false}));
                     if(server)host=CreateHost();
-                    transport=TogetherSurgeryTransport.Install(Receive,text=>{Client.Receive(text);Overview.Receive(text);Reply?.Invoke(text);},log);
+                    transport=TogetherSurgeryTransport.Install(Receive,ReceiveReply,log);
                     log?.Invoke("Surgery development transport active; authority views require their separate test switch.");
                 }
                 if(server && !(bool)canSync.Invoke(null,null))
@@ -147,6 +157,17 @@ namespace CasualtiesSurgery.Game
                 if(treated!=null) {var treatedComponent=treated.GetComponent(netBody);if(treatedComponent!=null)queueHealth.Invoke(null,new object[]{treatedComponent,false});}
             }
             transport.SendReply(authenticatedPeer,response);
+        }
+        void ReceiveReply(string text)
+        {
+            var packet=JObject.Parse(text);
+            if((string)packet["type"]=="surgery.consent")
+            {
+                if(packet["patient"]?.Type==JTokenType.String && packet["approved"]?.Type==JTokenType.Boolean)
+                    ConsentAnswered?.Invoke((string)packet["patient"],(bool)packet["approved"]);
+                return;
+            }
+            Client.Receive(text);Overview.Receive(text);Reply?.Invoke(text);
         }
         public bool Send(string request)=>transport!=null && transport.SendRequest(request);
         public void Reset()
