@@ -32,6 +32,31 @@ namespace CasualtiesSurgery.Game
         TextMeshProUGUI heading;
         ToolWheelGraphic wheelGraphic;
         SurgeryEffects effects;
+        SurgeryPeerVisuals peerVisuals;
+        long visualSequence;double nextVisual;
+        bool visualHeld;SurgeryTool visualTool;
+        readonly List<float> visualTrail=new List<float>();
+        void UpdatePeerVisuals(bool allowInput)
+        {
+            peerVisuals?.Refresh(presentation.Visuals,presentation.SnapshotAge,Stage,kind==ProcedureKind.Fragment?page:0);
+            bool held=allowInput && host.handClicking;
+            bool changed=held!=visualHeld || Tool!=visualTool;
+            if(!held || changed)visualTrail.Clear();
+            Vector2 point=field.InverseTransformPoint(host.handTransform.position);
+            if(held && (Tool==SurgeryTool.Suture || Tool==SurgeryTool.Scalpel || Tool==SurgeryTool.Gel))
+            {
+                int n=visualTrail.Count;
+                if(n==0 || (point-new Vector2(visualTrail[n-2],visualTrail[n-1])).sqrMagnitude>=9)
+                {if(n>=128)visualTrail.RemoveRange(0,2);visualTrail.Add(point.x);visualTrail.Add(point.y);}
+            }
+            visualHeld=held;visualTool=Tool;
+            if(!changed && Time.unscaledTimeAsDouble<nextVisual)return;
+            nextVisual=Time.unscaledTimeAsDouble+.1;
+            var image=host.handTransform.GetComponent<Image>();int sprite=Array.IndexOf(host.handSprites,image.sprite);if(sprite<0)return;
+            var rect=(RectTransform)host.handTransform;
+            presentation.PublishVisual(new SurgeryVisualState(++visualSequence,(int)Tool,sprite,Stage,kind==ProcedureKind.Fragment?page:0,
+                point.x,point.y,Mathf.DeltaAngle(field.eulerAngles.z,rect.eulerAngles.z),HandScale,rect.rect.width,rect.rect.height,rect.localScale.x<0,held,visualTrail.ToArray()));
+        }
         IncisionPrep prep;
         SutureThread thread;
         WristFade fade;
@@ -110,7 +135,8 @@ namespace CasualtiesSurgery.Game
             if(Complete){Finish("Surgery completed.");return;}
             if(displayed!=Stage || (kind==ProcedureKind.Fragment && displayedCount!=B.NextId))BuildStage();
             effects.Tick();RefreshState();
-            if(HandleWheel() || !ready || Time.deltaTime<=0)
+            bool wheelHandled=HandleWheel();UpdatePeerVisuals(!wheelHandled && ready && Time.deltaTime>0);
+            if(wheelHandled || !ready || Time.deltaTime<=0)
             {
                 effects.Stop();Plugin.Feedback?.StopLoop(this);
                 if(!wheelOpen && !host.handClicking)ready=true;
@@ -128,11 +154,11 @@ namespace CasualtiesSurgery.Game
         void BuildStage()
         {
             if(kind==ProcedureKind.Fragment)scale=presentation.ViewScale;
-            ResetGesture(true);effects?.Detach();
+            ResetGesture(true);effects?.Detach();peerVisuals?.Dispose();visualTrail.Clear();visualHeld=false;
             if(field!=null){field.gameObject.SetActive(false);Object.Destroy(field.gameObject);}
             parts.Clear();bones.Clear();dots.Clear();outerPool=null;prep=null;
             field=Box("OperatingField",root,kind==ProcedureKind.InternalBleeding?Vector2.zero:new Vector2(0,5),new Vector2(900,700),new Color(.045f,.085f,.16f)).rectTransform;
-            field.SetSiblingIndex(1);thread=new SutureThread(field);displayed=Stage;displayedCount=kind==ProcedureKind.Fragment?B.NextId:0;
+            field.SetSiblingIndex(1);peerVisuals=new SurgeryPeerVisuals(field,host);thread=new SutureThread(field);displayed=Stage;displayedCount=kind==ProcedureKind.Fragment?B.NextId:0;
             log("Authority stage: "+kind+" limb="+Array.IndexOf(body.limbs,limb)+" phase="+Stage+" sample="+presentation.Sample);
             if(kind==ProcedureKind.Fragment)BuildFragments();
             else if(Stage==1 && kind==ProcedureKind.Fracture)BuildBones();
@@ -263,7 +289,9 @@ namespace CasualtiesSurgery.Game
         {
             if(Input.GetKeyDown(wheelKey)&&Inside())
             {
-                ResetGesture(true);wheelOpen=true;wheelOrigin=Input.mousePosition;frozen=host.handPos;host.ForceUngrab();
+                if(kind==ProcedureKind.Fragment && Tool==SurgeryTool.Forceps && host.handStoppedClicking && grip>=0)
+                    Extract(SurgeryContact.Point(host,Tool));
+                ResetGesture(true,true);wheelOpen=true;wheelOrigin=Input.mousePosition;frozen=host.handPos;host.ForceUngrab();
                 var c=root.GetComponentInParent<Canvas>();RectTransformUtility.ScreenPointToLocalPointInRectangle(root,wheelOrigin,c.renderMode==RenderMode.ScreenSpaceOverlay?null:c.worldCamera,out var point);
                 wheel.localPosition=point;wheel.SetAsLastSibling();wheel.gameObject.SetActive(true);
             }
@@ -284,7 +312,7 @@ namespace CasualtiesSurgery.Game
         public void OnEnded()
         {
             if(!Ended)log("Surgery view cleanup: "+kind+" limb="+Array.IndexOf(body.limbs,limb));
-            if(Ended)return;Ended=true;ResetGesture(false);presentation.Dispose();Plugin.Feedback?.StopLoop(this);Plugin.ProtectExitClick();
+            if(Ended)return;Ended=true;peerVisuals?.Dispose();ResetGesture(false);presentation.Dispose();Plugin.Feedback?.StopLoop(this);Plugin.ProtectExitClick();
             if(knife!=null){knife.enabled=false;Object.Destroy(knife);}if(fade!=null){fade.enabled=false;Object.Destroy(fade);}
             if(handSetup && host!=null && host.handTransform!=null)host.handTransform.localScale=originalScale;
             if(root!=null && (host==null || !ReferenceEquals(host.currentMinigame,this))){root.gameObject.SetActive(false);Object.Destroy(root.gameObject);}

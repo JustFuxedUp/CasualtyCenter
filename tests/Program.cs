@@ -71,6 +71,7 @@ static class Program
         RemoteOverviewChecks.Run(Check);
         SharedTreatmentChecks.Run(Check);
         CooperativeChecks.Run(Check);
+        VisualChecks.Run(Check);
         InternalNetworkChecks.Run(Check);
         RecoveryChecks.Run(Check);
         TransportChecks.Run(Check);

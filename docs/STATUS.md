@@ -2,7 +2,19 @@
 
 Updated: 2026-11-18. Verify Git/process/file state before acting.
 
-## 0.16.0 cooperative test release - current state (2026-11-18)
+## Unreleased release-order fix and remote surgeon visuals (2026-11-18)
+
+User's 0.16.0 two-instance report: contested fragment/bone ownership, first-served sutures, gel synchronization, simultaneous operations across limbs and shared operations behaved as expected. One operation per specific limb remained enforced. Consent boundaries were NOT exercised and remain pending; the separate heal-command bug was observed but intentionally left outside this work. The client still reset extracted fragments when the tool wheel opened immediately after release.
+
+Confirmed cause: tool-wheel ResetGesture cleared queued releases and their prerequisite evidence; on a same-frame wheel press it could also run before the release input. Wheel changes now preserve queued terminal actions plus preceding ordered evidence, retain pending release previews, and process a stopped fragment grip before opening the wheel. Unfinished gestures still cancel. Added regressions cover queued grip/release and in-flight release across wheel cancellation; explicit hard cancellation remains available.
+
+Implemented cosmetic remote hands/tool effects scoped to active participants of the exact operation. Together ScavPlayer.playerColor and Color24 byte r/g/b fields were verified in the installed assembly. The host supplies identity/color; clients supply bounded hand position, native sprite index, mirror, angle/scale, stage/page and at most 64 trail points. Presence is independent of clinical command acknowledgement and never renews a lease, changes revisions, applies treatment, or triggers audio. Host rejects invalid/stale/rate-limited/nonmember updates; samples expire after 1.2 seconds and are excluded from outsider snapshots. Native hand sprites use a translucent player-color overlay, shared wrist fade and a remote-specific scalpel-anchor flag. Other surgeons see attempted suture/scalpel traces, gel marks and suction contact; views filter by phase/page and remove effects on release, stale presence, departure or teardown. Samples publish at up to 10 Hz plus input edges, are server-limited to 20 Hz, and arrive through normal snapshots; this is a bounded preview, not a frame-perfect stream.
+
+Verification: **571 checks passed**, including cosmetic/clinical queue separation, host color provenance, operation isolation, outsider/forged lease rejection, detached trails, stale/invalid packets, expiration without lease renewal, and release ordering. Plugin Release succeeded with zero warnings/errors; diff check passed. No native lifecycle-hook change, so the Harmony harness was not rerun. Live visual/socket acceptance is pending: [TEST-REMOTE-VISUALS](TEST-REMOTE-VISUALS.md).
+
+Source version string remains 0.16.0 for this unreleased pass. No new installation/package/version release was requested or performed. Installed/distributed 0.16.0 remains E509DF51184D8F42E9FCDEA0B4617C4C05C4BA4532D19B79B2DA8478C2E7EB11. Check Git for current development commit/push state.
+
+## 0.16.0 cooperative test release - delivered state (2026-11-18)
 
 User authorized simultaneous/cooperative implementation, development-branch pushes, and a test release. Source, build, installed DLL and client package are now **0.16.0**. This supersedes the unreleased/install notes below; older sections remain historical. No main merge or public release publication.
 

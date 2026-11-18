@@ -13,9 +13,10 @@ namespace CasualtiesSurgery.Game
     // Applied after WristFade: move rendered vertices, never the physics/input transform.
     public sealed class KnifeTipVisual : BaseMeshEffect
     {
+        internal bool Remote,RemoteScalpel;
         public override void ModifyMesh(VertexHelper mesh)
         {
-            if(!IsActive() || Plugin.SelectedTool!=SurgeryTool.Scalpel ||
+            if(!IsActive() || (Remote?!RemoteScalpel:Plugin.SelectedTool!=SurgeryTool.Scalpel) ||
                 !(MinigameBase.main?.currentMinigame is ISurgery surgery) || surgery.Ended)return;
             var image=graphic as Image;
             if(image==null || image.sprite==null || MinigameBase.main.handSprites==null || MinigameBase.main.handSprites.Length<=13 || image.sprite!=MinigameBase.main.handSprites[13])return;

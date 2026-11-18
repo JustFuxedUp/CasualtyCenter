@@ -29,13 +29,13 @@ namespace CasualtiesSurgery.Game
         static JObject Point(Vector2 p)=>new JObject { ["x"]=Math.Round(p.x,4),["y"]=Math.Round(p.y,4) };
         JObject TargetPoint(int target,Vector2 p)
         {var value=Point(p);value[kind==ProcedureKind.Fragment?"site":"wound"]=target;return value;}
-        void ResetGesture(bool notify)
+        void ResetGesture(bool notify,bool preserveReleased=false)
         {
             grip=-1;pull?.Reset();pull=null;stroke=null;candidates.Clear();thread?.Clear();
             heldSeconds=dragSeconds=strokeSeconds=0;cutting=false;ready=false;
             effects?.Stop();Plugin.Feedback?.StopLoop(this);
             outerPool?.ResetPreview();foreach(var part in parts)part.Pools?.ResetPreview();
-            if(notify)presentation.CancelInput();
+            if(notify)presentation.CancelInput(preserveReleased);
         }
         void InputStep(Vector3 contact,Vector2 point)
         {

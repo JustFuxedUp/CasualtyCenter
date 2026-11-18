@@ -34,8 +34,9 @@ namespace CasualtiesSurgery.Procedures
         public float ViewScale { get; }
         public int Participants { get; }
         public string[] BusyResources { get; }
-        public SurgerySnapshot(OperationKey operation,long revision,long sample,double hostTime,string state,float viewScale=.4f,int participants=1,string[] busyResources=null)
-        { Operation=operation;Revision=revision;Sample=sample;HostTime=hostTime;State=state;ViewScale=viewScale;Participants=participants;BusyResources=busyResources==null?new string[0]:(string[])busyResources.Clone(); }
+        public SurgeryPeerVisual[] Visuals {get;}
+        public SurgerySnapshot(OperationKey operation,long revision,long sample,double hostTime,string state,float viewScale=.4f,int participants=1,string[] busyResources=null,SurgeryPeerVisual[] visuals=null)
+        { Operation=operation;Revision=revision;Sample=sample;HostTime=hostTime;State=state;ViewScale=viewScale;Participants=participants;BusyResources=busyResources==null?new string[0]:(string[])busyResources.Clone();Visuals=visuals??new SurgeryPeerVisual[0]; }
     }
 
     // Host-owned registry. No client can register targets or supply the clock. Invoke only
@@ -47,6 +48,7 @@ namespace CasualtiesSurgery.Procedures
             public PatientLease Lease;
             public SurgeryCommandJournal Journal;
             public ISurgeryCommandTarget Target;
+            public SurgeryVisualState Visual;public double VisualAt;public byte Red,Green,Blue;
         }
         sealed class Entry
         {
@@ -130,13 +132,26 @@ namespace CasualtiesSurgery.Procedures
         }
         public void Disconnect(Guid connection)
         {foreach(var pair in entries)Drop(pair.Key,pair.Value,connection);leases.Disconnect(connection);}
+        public bool PublishVisual(OperationKey key,Guid connection,Guid token,SurgeryVisualState visual,byte red,byte green,byte blue)
+        {
+            double now=clock();
+            if(visual==null || !visual.Valid || key==null || !entries.TryGetValue(key,out var entry) || entry.Faulted ||
+                !entry.Members.TryGetValue(connection,out var member) || !leases.Validate(key,connection,token,now) || !member.Target.CanAccess(connection) ||
+                (member.Visual!=null && (visual.Sequence<=member.Visual.Sequence || now-member.VisualAt<.05)))return false;
+            member.Visual=visual.Copy();member.VisualAt=now;member.Red=red;member.Green=green;member.Blue=blue;return true;
+        }
         public SurgerySnapshot Snapshot(OperationKey key,Guid connection)
         {
             if(key==null || !entries.TryGetValue(key,out var entry) || entry.Faulted || !entry.Target.CanAccess(connection) || !(entry.Target is ISurgeryStateTarget target))return null;
             var busy=new List<string>();
             foreach(var member in entry.Members)
                 if(member.Key!=connection && member.Value.Target is ISurgeryResourceTarget resource && resource.HeldResource!=null)busy.Add(resource.HeldResource);
-            return new SurgerySnapshot(key,entry.Revision,++entry.Sample,clock(),target.CaptureState(),(target as ISurgeryViewSettings)?.ViewScale??.4f,entry.Members.Count,busy.ToArray());
+            var visuals=new List<SurgeryPeerVisual>();
+            bool participant=entry.Members.TryGetValue(connection,out var viewer) && leases.Validate(key,connection,viewer.Lease.Token,clock());
+            foreach(var member in entry.Members)
+                if(participant && member.Key!=connection && member.Value.Visual!=null && clock()-member.Value.VisualAt<=1.2 && leases.Validate(key,member.Key,member.Value.Lease.Token,clock()) && member.Value.Target.CanAccess(member.Key))
+                    visuals.Add(new SurgeryPeerVisual(member.Key,member.Value.Red,member.Value.Green,member.Value.Blue,Math.Max(0,clock()-member.Value.VisualAt),member.Value.Visual));
+            return new SurgerySnapshot(key,entry.Revision,++entry.Sample,clock(),target.CaptureState(),(target as ISurgeryViewSettings)?.ViewScale??.4f,entry.Members.Count,busy.ToArray(),visuals.ToArray());
         }
         public void Tick()
         {

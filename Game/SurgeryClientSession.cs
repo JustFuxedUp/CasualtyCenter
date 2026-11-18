@@ -46,6 +46,12 @@ namespace CasualtiesSurgery.Game
             if(patient!=null)request["patient"]=patient;
             return Queue("open",request);
         }
+        public bool PublishVisual(SurgeryVisualState visual)
+        {
+            if(!Active || closing || visual==null || !visual.Valid)return false;
+            var request=Identity();request["type"]="presence";request["requestId"]=Guid.NewGuid().ToString("N");request["visual"]=JObject.FromObject(visual);
+            return send(request.ToString(Formatting.None)); // No clinical queue, retry, lease renewal or revision change.
+        }
         public bool Command(string action,JObject payload)
         {
             if(!Active || Busy || closing || payload==null)return false;

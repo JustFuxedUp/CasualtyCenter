@@ -102,9 +102,16 @@ static class PresentationChecks
         predictedView.Tick();DeliverPrediction(); // cancellation after rejection
         predictedView.ReleaseFragment(release);predictedView.CancelInput();
         check(!predictedView.PreviewingExtraction(0),"Cancelled queued release clears its preview");predictedView.Tick();DeliverPrediction();
-        predictedView.Submit("fragment.grip",new JObject {["site"]=0,["x"]=0,["y"]=.38});predictedView.Tick();DeliverPrediction();
-        check(predictedView.ReleaseFragment(release),"Valid local extraction can begin a new preview after rejection");predictedView.Tick();
-        string releasePacket=predictedPackets.Dequeue();string releaseReply=predictedRouter.Handle(actor,releasePacket);float afterRelease=predictedLimb.skinHealth;int shards=predictedLimb.shrapnel;
+        predictedView.Submit("fragment.grip",new JObject {["site"]=0,["x"]=0,["y"]=.38});
+        check(predictedView.ReleaseFragment(release),"Valid local extraction can begin a new preview after rejection");
+        predictedView.CancelInput(true);
+        check(predictedView.PreviewingExtraction(0),"Opening the tool wheel preserves a queued release preview");predictedView.Tick();
+        check((string)JObject.Parse(predictedPackets.Peek())["command"]["Action"]=="fragment.grip","Tool wheel preserves the grip evidence preceding a queued completed release");DeliverPrediction();predictedView.Tick();
+        string releasePacket=predictedPackets.Dequeue();
+        check((string)JObject.Parse(releasePacket)["command"]["Action"]=="fragment.release","Tool wheel keeps the completed release ahead of gesture cancellation");
+        predictedView.CancelInput(true);
+        check(predictedView.PreviewingExtraction(0),"Tool wheel preserves an in-flight release preview");
+        string releaseReply=predictedRouter.Handle(actor,releasePacket);float afterRelease=predictedLimb.skinHealth;int shards=predictedLimb.shrapnel;
         now+=.3;
         check(predictedView.ExtractionOpacity(0)==0 && !predictedView.Fragments.Sites[0].Extracted && scored==0,"Delayed confirmation leaves a faded preview without claiming authoritative completion");
         now+=1;predictedClient.Tick();

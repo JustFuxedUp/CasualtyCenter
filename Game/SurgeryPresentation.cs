@@ -42,6 +42,8 @@ namespace CasualtiesSurgery.Game
         public long Sample { get; private set; }
         public float ViewScale { get; private set; }=.4f;
         public int Participants {get;private set;}=1;
+        public SurgeryPeerVisual[] Visuals {get;private set;}=new SurgeryPeerVisual[0];
+        public bool PublishVisual(SurgeryVisualState visual)=>!disposed && Error==null && Ready && client.PublishVisual(visual);
         string[] busyResources=new string[0];
         public bool ResourceBusy(string resource)
         {foreach(var held in busyResources)if(resource=="*" || held=="*" || resource==held)return true;return false;}
@@ -59,6 +61,8 @@ namespace CasualtiesSurgery.Game
             try
             {
                 if(snapshot.Operation.Procedure!=Kind)throw new ArgumentException("Wrong procedure snapshot.");
+                if(snapshot.Visuals.Length>7)throw new ArgumentException("Too many peer visuals.");
+                foreach(var peer in snapshot.Visuals)if(peer==null || peer.Participant==Guid.Empty || peer.State==null || !peer.State.Valid || double.IsNaN(peer.Age) || double.IsInfinity(peer.Age) || peer.Age<0 || peer.Age>1.2)throw new ArgumentException("Invalid peer visual.");
                 if(snapshot.Participants<0 || snapshot.Participants>8 || snapshot.BusyResources.Length>8)throw new ArgumentException("Invalid participant snapshot.");
                 if(!(snapshot.ViewScale>=.3f && snapshot.ViewScale<=.8f))throw new ArgumentException("Invalid view geometry.");
                 var settings=new JsonSerializerSettings {MaxDepth=12};
@@ -68,7 +72,7 @@ namespace CasualtiesSurgery.Game
                 {var value=JsonConvert.DeserializeObject<InternalBleedingState>(snapshot.State,settings);if(!value.Valid())throw new ArgumentException("Invalid internal state.");Internal=value;}
                 else
                 {var value=JsonConvert.DeserializeObject<FragmentBoard>(snapshot.State,settings);value.Validate();Fragments=value;}
-                sampledAt=clock();Sample=snapshot.Sample;ViewScale=snapshot.ViewScale;Participants=Math.Max(1,snapshot.Participants);busyResources=(string[])snapshot.BusyResources.Clone();
+                sampledAt=clock();Sample=snapshot.Sample;ViewScale=snapshot.ViewScale;Participants=Math.Max(1,snapshot.Participants);busyResources=(string[])snapshot.BusyResources.Clone();Visuals=snapshot.Visuals;
             }
             catch(Exception e) when(e is JsonException || e is ArgumentException || e is NullReferenceException)
             {Failed("Invalid surgery snapshot; treatment stopped.");client.Release();}
@@ -113,9 +117,14 @@ namespace CasualtiesSurgery.Game
             if(queued.Count>=32) {CancelInput();InputReset?.Invoke();return false;}
             queued.Add(new Intent {Action=action,Payload=copy,Key=replaceKey});return true;
         }
-        public void CancelInput()
+        public void CancelInput(bool preserveReleased=false)
         {
-            queued.Clear();extractions.Clear();
+            // A tool change cancels the unfinished gesture, not already submitted
+            // terminal actions or the ordered grip/drag evidence preceding them.
+            int keep=preserveReleased?queued.FindLastIndex(i=>i.Action=="fragment.release" || i.Action=="bone.release" || i.Action.EndsWith(".stitch",StringComparison.Ordinal) || i.Action=="incision.close")+1:0;
+            if(keep<queued.Count)queued.RemoveRange(keep,queued.Count-keep);
+            foreach(var pair in new List<KeyValuePair<int,ExtractionPreview>>(extractions))
+                if(!preserveReleased || (!pair.Value.Confirmed && !ReferenceEquals(pair.Value.Intent,flight) && !queued.Contains(pair.Value.Intent)))extractions.Remove(pair.Key);
             if(!disposed && Ready)queued.Add(new Intent {Action="gesture.cancel",Payload=new JObject()});
         }
         public void Tick()

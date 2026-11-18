@@ -8,6 +8,7 @@ Read AGENTS.md and STATUS first for development, then choose one relevant docume
 - [PROJECT](PROJECT.md): gameplay contract, balance defaults, accepted future direction.
 - [ARCHITECTURE](ARCHITECTURE.md): code ownership, native findings, persistence and transaction boundaries.
 - [MULTIPLAYER](MULTIPLAYER.md): implemented authority/transport/view contract, command payloads and remaining host/client acceptance work.
+- [TEST-REMOTE-VISUALS](TEST-REMOTE-VISUALS.md): unreleased release/wheel ordering and tinted remote hand/effect checks.
 - [TEST-0.16.0](TEST-0.16.0.md): current simultaneous/cooperative surgery test sequence, limits and report template.
 - [TEST-0.15.0](TEST-0.15.0.md): historical tutorial-first integration checks.
 - [MULTIPLAYER-TEST](MULTIPLAYER-TEST.md): historical 0.14.x and development test notes.

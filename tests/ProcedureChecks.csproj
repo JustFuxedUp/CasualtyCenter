@@ -18,6 +18,7 @@
 <Compile Include="../Game/SurgeryHostRouter.cs" Link="SurgeryHostRouter.cs" />
 <Compile Include="../Game/SurgeryTreatmentAccess.cs" Link="SurgeryTreatmentAccess.cs" />
 <Compile Include="../Game/SurgeryClientSession.cs" Link="SurgeryClientSession.cs" />
+<Compile Include="../Procedures/SurgeryVisualState.cs" Link="SurgeryVisualState.cs" />
 <Compile Include="../Game/SurgeryPresentation.cs" Link="SurgeryPresentation.cs" />
 <Compile Include="../Game/TogetherSurgeryTransport.cs" Link="TogetherSurgeryTransport.cs" />
 <Reference Include="Newtonsoft.Json"><HintPath>$(GamePath)/CasualtiesUnknown_Data/Managed/Newtonsoft.Json.dll</HintPath></Reference>

@@ -17,6 +17,7 @@ namespace CasualtiesSurgery.Game
         readonly Func<Guid,Body> resolve;
         readonly Func<string,Body> inspectPatient;
         readonly SurgeryTreatmentAccess permission;
+        readonly Func<Guid,byte[]> playerColor;
         readonly SurgeryDispatcher dispatcher;
         readonly Guid world=Guid.NewGuid();
         readonly List<Registration> registrations=new List<Registration>();
@@ -25,8 +26,8 @@ namespace CasualtiesSurgery.Game
         readonly Dictionary<string,OpenRequest> opened=new Dictionary<string,OpenRequest>();
         readonly Queue<string> openOrder=new Queue<string>();
         readonly float recovery,reduction,scale;
-        public SurgeryHostRouter(Func<Guid,Body> authenticatedBody,Func<double> clock,float recovery=5,float reduction=1,float scale=.4f,Func<string,Body> inspectPatient=null,SurgeryTreatmentAccess permission=null)
-        { resolve=authenticatedBody ?? throw new ArgumentNullException(nameof(authenticatedBody));this.inspectPatient=inspectPatient;this.permission=permission??new SurgeryTreatmentAccess(resolve,null,null,null,clock);dispatcher=new SurgeryDispatcher(world,clock);this.recovery=recovery;this.reduction=reduction;this.scale=scale; }
+        public SurgeryHostRouter(Func<Guid,Body> authenticatedBody,Func<double> clock,float recovery=5,float reduction=1,float scale=.4f,Func<string,Body> inspectPatient=null,SurgeryTreatmentAccess permission=null,Func<Guid,byte[]> playerColor=null)
+        { this.playerColor=playerColor;resolve=authenticatedBody ?? throw new ArgumentNullException(nameof(authenticatedBody));this.inspectPatient=inspectPatient;this.permission=permission??new SurgeryTreatmentAccess(resolve,null,null,null,clock);dispatcher=new SurgeryDispatcher(world,clock);this.recovery=recovery;this.reduction=reduction;this.scale=scale; }
         public void Tick()
         {
             dispatcher.Tick();
@@ -151,6 +152,18 @@ namespace CasualtiesSurgery.Game
                 if(openOrder.Count>256)opened.Remove(openOrder.Dequeue());
                 dispatcher.Tick();
                 return Reply(id,new JObject { ["lease"]=JObject.FromObject(lease),["snapshot"]=JObject.FromObject(dispatcher.Snapshot(lease.Operation,connection)) });
+            }
+            if(type=="presence")
+            {
+                if(!Fields(request,"requestId","type","operation","lease","visual"))return Error(id,"invalid");
+                try
+                {
+                    var key=request["operation"].ToObject<OperationKey>();var token=request["lease"].ToObject<Guid>();
+                    var visual=request["visual"].ToObject<SurgeryVisualState>();var color=playerColor?.Invoke(connection);
+                    bool accepted=dispatcher.PublishVisual(key,connection,token,visual,color!=null&&color.Length==3?color[0]:(byte)180,color!=null&&color.Length==3?color[1]:(byte)210,color!=null&&color.Length==3?color[2]:(byte)255);
+                    return Reply(id,new JObject {["accepted"]=accepted});
+                }
+                catch(Exception e) when(e is JsonException || e is ArgumentException || e is FormatException || e is OverflowException || e is NullReferenceException) {return Error(id,"invalid");}
             }
             if(type=="command")
             {

@@ -23,7 +23,7 @@ namespace CasualtiesSurgery.Game
         SurgeryTreatmentAccess permission;
         FieldInfo rules,consentForFeeding;
         MethodInfo promptPlayer,unobstructed;
-        FieldInfo players,body,playerName;
+        FieldInfo players,body,playerName,playerColor,colorRed,colorGreen,colorBlue;
         public event Action<string,bool> ConsentAnswered;
         Type netBody;
         MethodInfo queueHealth,canSync;
@@ -55,7 +55,12 @@ namespace CasualtiesSurgery.Game
                 if(entry.Key.ToString()==target){var value=body.GetValue(entry.Value) as Body;return value!=null?value:null;}
             return null;
         }
-        SurgeryHostRouter CreateHost()=>new SurgeryHostRouter(Resolve,()=>Time.unscaledTimeAsDouble,recovery,reduction,scale,ResolveInspection,permission);
+        SurgeryHostRouter CreateHost()=>new SurgeryHostRouter(Resolve,()=>Time.unscaledTimeAsDouble,recovery,reduction,scale,ResolveInspection,permission,ColorOf);
+        byte[] ColorOf(Guid connection)
+        {
+            if(!peers.TryGetValue(connection,out var peer) || playerColor==null)return null;
+            var color=playerColor.GetValue(peer);return new[]{(byte)colorRed.GetValue(color),(byte)colorGreen.GetValue(color),(byte)colorBlue.GetValue(color)};
+        }
         void PromptConsent(Body actor,Body patient,Action<bool> answer)
         {
             if(!(players.GetValue(null) is IDictionary live))throw new InvalidOperationException("Player roster unavailable.");
@@ -89,7 +94,9 @@ namespace CasualtiesSurgery.Game
                     TogetherMinigameCompatibility.Log=log;
                     try {TogetherMinigameCompatibility.ObserveStartup(new HarmonyLib.Harmony("local.casualties.surgery"),assembly);}
                     catch(Exception observationError){log?.Invoke("Surgery startup observation unavailable: "+observationError.Message);}
-                    var player=assembly.GetType("Together.ScavPlayer",true);players=player.GetField("ClientIdToPlayerDict");body=player.GetField("body");playerName=player.GetField("playerName");
+                    var player=assembly.GetType("Together.ScavPlayer",true);players=player.GetField("ClientIdToPlayerDict");body=player.GetField("body");playerName=player.GetField("playerName");playerColor=player.GetField("playerColor");
+                    colorRed=playerColor?.FieldType.GetField("r");colorGreen=playerColor?.FieldType.GetField("g");colorBlue=playerColor?.FieldType.GetField("b");
+                    if(colorRed?.FieldType!=typeof(byte) || colorGreen?.FieldType!=typeof(byte) || colorBlue?.FieldType!=typeof(byte))throw new NotSupportedException("Together player color API mismatch.");
                     var medical=assembly.GetType("Together.MedicalSync",true);netBody=assembly.GetType("Together.NetBody",true);
                     queueHealth=medical.GetMethod("Server_QueueSendCharacterHealth",new[]{netBody,typeof(bool)});canSync=medical.GetMethod("CanSyncHealth",Type.EmptyTypes);
                     if(players==null || playerName?.FieldType!=typeof(string) || body==null || queueHealth==null || canSync==null)throw new NotSupportedException("Together identity or health API mismatch.");
