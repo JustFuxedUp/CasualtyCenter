@@ -42,6 +42,7 @@ namespace CasualtiesSurgery.Game
         readonly List<Mark> marks=new List<Mark>();
         readonly RectTransform layer,root;readonly TextMeshProUGUI counter;
         Vector2 previous;bool tracing;SurgeryTool previousTool;float gelTick;
+        public const float GelSquareMin = 18, GelSquareMax = 34;
         public float SutureCm {get;private set;} public float GelMl {get;private set;}
         public SurgeryEffects(RectTransform root,TMP_FontAsset font,RectTransform field)
         {
@@ -62,7 +63,7 @@ namespace CasualtiesSurgery.Game
         {
             if(!held || dt<=0){Stop();return 0;}
             Vector2 p=layer.InverseTransformPoint(world);float dispensed=0;
-            if(tracing && previousTool==tool && tool!=SurgeryTool.Gel)
+            if(tracing && previousTool==tool && tool!=SurgeryTool.Gel && tool!=SurgeryTool.Suction)
             {
                 Vector2 d=p-previous;
                 if(tool==SurgeryTool.Suture)SutureCm+=d.magnitude/100;
@@ -71,7 +72,7 @@ namespace CasualtiesSurgery.Game
             if(tool==SurgeryTool.Gel)
             {
                 dispensed=GelRules.FlowMlPerSecond*dt;GelMl+=dispensed;gelTick+=dt;
-                if(gelTick>=.04f){gelTick=0;float size=Random.Range(18f,34f);MarkAt(p+Random.insideUnitCircle*14,Vector2.one*size,new Color(.25f,.9f,.65f,.13f),.8f);}
+                if(gelTick>=.04f){gelTick=0;float size=Random.Range(GelSquareMin,GelSquareMax);MarkAt(p+Random.insideUnitCircle*14,Vector2.one*size,new Color(.25f,.9f,.65f,.13f),.8f);}
             }
             previous=p;previousTool=tool;tracing=true;UpdateCounter();return dispensed;
         }

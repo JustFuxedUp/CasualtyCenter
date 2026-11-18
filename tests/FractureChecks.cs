@@ -12,7 +12,7 @@ static class FractureChecks
         var body=new Body();var limb=new Limb{body=body,skinHealth=80,broken=true,boneHealTimer=100,bleedAmount=7,muscleHealth=70,pain=10};body.limbs=new[]{limb};PlayerCamera.main=new PlayerCamera{body=body};return limb;
     }
     static void Open(FractureState s,Limb limb){for(int i=8;i>=0;i--)limb.skinHealth-=s.Cut(i,limb.skinHealth);}
-    static void Align(FractureState s){s.Angles[0]=8;s.Align(0);s.Angles[1]=-8;s.Align(1);}
+    static void Align(FractureState s){s.Angles[0]=5;s.Align(0);s.Angles[1]=-5;s.Align(1);}
     public static void Run(Action<bool,string> check)
     {
         var trace=new ScalpelTrace();check(trace.Step(true,false,.2f)==0 && trace.Step(true,false,.2f)==0,"Scalpel has 0.4 second grace");
@@ -33,9 +33,9 @@ static class FractureChecks
         var restored=Patient();restored.skinHealth=savedSkin;provider.Restore(restored,0,JToken.Parse(json),1,new SaveRestoreContext());state=FractureStore.Get(restored);
         check(state.Cuts[4] && Near(state.SkinDebt,first) && Near(restored.skinHealth,savedSkin),"Partial incision save restores debt without charging again");
         Open(state,restored);check(state.Stage==FractureStage.Alignment && Near(restored.skinHealth,32) && Near(state.SkinDebt,48),"Any dot order opens incision for 60 percent of starting skin");
-        state.Angles[0]=13;check(!state.Align(0),"Alignment outside 12 degree threshold rejected");
-        state.Angles[0]=372;check(state.Align(0),"Wrapped angle within threshold accepted");
-        state.Angles[1]=-12;check(state.Align(1) && state.Stage==FractureStage.Closure,"Both bone pieces required for closure");
+        state.Angles[0]=6;check(!state.Align(0),"Alignment outside 5 degree threshold rejected");
+        state.Angles[0]=365;check(state.Align(0),"Wrapped angle within threshold accepted");
+        state.Angles[1]=-5;check(state.Align(1) && state.Stage==FractureStage.Closure,"Both bone pieces required for closure");
         restored.skinHealth-=5;restored.boneHealTimer=80;
         check(FractureStore.TryClose(restored,75) && Near(restored.skinHealth,75) && Near(restored.boneHealTimer,20) && restored.broken,"Closure returns only incision debt and reduces live timer without mending");
         check(!FractureStore.HasOpen(restored),"Closed incision clears open marker");

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 namespace CasualtiesSurgery.Game
@@ -6,7 +7,33 @@ namespace CasualtiesSurgery.Game
     public sealed class ToolWheelGraphic : MaskableGraphic
     {
         public int Selected = -1;
-        public int ToolCount=4;
+        public int ToolCount { get; private set; }
+        internal static ToolWheelGraphic Create(Transform parent, TMP_FontAsset font, float scale)
+        {
+            var go = new GameObject("ToolWheel", typeof(RectTransform), typeof(ToolWheelGraphic));
+            var wheel = go.GetComponent<ToolWheelGraphic>();
+            wheel.rectTransform.SetParent(parent, false);
+            wheel.rectTransform.sizeDelta = Vector2.one * 380;
+            wheel.rectTransform.localScale = Vector3.one * scale;
+            wheel.raycastTarget = false;
+            var tools = System.Enum.GetNames(typeof(SurgeryTool));
+            wheel.ToolCount = tools.Length;
+            for (int i = 0; i < tools.Length; i++)
+            {
+                var label = new GameObject(tools[i], typeof(RectTransform), typeof(TextMeshProUGUI))
+                    .GetComponent<TextMeshProUGUI>();
+                label.rectTransform.SetParent(wheel.rectTransform, false);
+                label.rectTransform.sizeDelta = new Vector2(140, 70);
+                label.rectTransform.anchoredPosition = Polar(i * 2 * Mathf.PI / tools.Length, 122);
+                label.font = font;
+                label.fontSize = 25;
+                label.alignment = TextAlignmentOptions.Center;
+                label.raycastTarget = false;
+                label.text = tools[i];
+            }
+            go.SetActive(false);
+            return wheel;
+        }
         public static int Pick(Vector2 delta,int count)
         {
             if(delta.magnitude<14)return -1;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CasualtiesSurgery.Procedures;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -12,19 +13,21 @@ namespace CasualtiesSurgery.Game
     {
         readonly Action<WoundView, Limb> begin;
         readonly Action<WoundView,Limb> beginFracture;
+        readonly Action<WoundView, Limb> beginInternal;
         readonly Action dismiss;
         readonly List<HealthLimbClick> hooks = new List<HealthLimbClick>();
         WoundView view;
         GameObject overlay;
         RectTransform panel;
         TextMeshProUGUI title, reason;
-        Button procedure,fracture;
+        Button procedure,fracture,internalBleeding,back;
         Body patient;
         Limb limb;
+        string entryNotice;
         public bool IsOpen => overlay != null && overlay.activeSelf;
 
-        public HealthMenu(Action<WoundView, Limb> begin, Action<WoundView,Limb> beginFracture, Action dismiss)
-        { this.begin = begin; this.beginFracture=beginFracture; this.dismiss = dismiss; }
+        public HealthMenu(Action<WoundView, Limb> begin, Action<WoundView,Limb> beginFracture, Action<WoundView,Limb> beginInternal, Action dismiss)
+        { this.begin = begin; this.beginFracture=beginFracture; this.beginInternal=beginInternal; this.dismiss = dismiss; }
 
         public void Tick()
         {
@@ -41,6 +44,7 @@ namespace CasualtiesSurgery.Game
                         hook.Menu = this; hook.Native = native; hooks.Add(hook);
                     }
             }
+            if(view!=null && view.gameObject.activeInHierarchy)Plugin.InspectPatient(view.body);
             UpdateMarkers();
             if (!IsOpen) return;
             if (view == null || !view.gameObject.activeInHierarchy || view.body != patient)
@@ -56,7 +60,7 @@ namespace CasualtiesSurgery.Game
                 if(hook==null || hook.Native==null)continue;
                 int index=hook.Native.limb;
                 var selected=view.body!=null && view.body.limbs!=null && index>=0 && index<view.body.limbs.Length?view.body.limbs[index]:null;
-                bool incision=FractureStore.HasOpen(selected),pending=FragmentBoardStore.HasPendingSuture(selected);
+                bool incision=HasOpenIncision(selected),pending=Plugin.Marker(selected,"suture",FragmentBoardStore.HasPendingSuture(selected));
                 if(hook.Marker==null && (incision||pending))
                 {
                     hook.Marker=Text("OpenSurgeryMarker",view.transform,Vector2.zero,new Vector2(64,20),12);
@@ -82,13 +86,14 @@ namespace CasualtiesSurgery.Game
             if (selected == null) return;
             // Capture the clicked limb, not the last hover index (which can be stale).
             patient = body; limb = selected;
+            Plugin.LogEntry("menu opened; limb="+index+", localPatient="+(PlayerCamera.main!=null && PlayerCamera.main.body==body));
             if (overlay == null) Build();
             overlay.SetActive(true); overlay.transform.SetAsLastSibling();
             var parent = (RectTransform)overlay.transform;
             Vector2 local;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, pointer.position, pointer.pressEventCamera, out local);
             Rect bounds = parent.rect;
-            float width = Mathf.Min(280, bounds.width), height = Mathf.Min(222, bounds.height);
+            float width = Mathf.Min(280, bounds.width), height = Mathf.Min(ShowsInternal() ? 260 : 222, bounds.height);
             panel.sizeDelta = new Vector2(width, height);
             panel.localPosition = new Vector3(
                 Mathf.Clamp(local.x + 12, bounds.xMin, bounds.xMax - width),
@@ -111,8 +116,9 @@ namespace CasualtiesSurgery.Game
             title = Text("PatientLimb", panel, new Vector2(12, -10), new Vector2(256, 40), 16);
             procedure = MakeButton("Extract fragment + suture", new Vector2(12, -56), new Vector2(256, 32), Start);
             fracture=MakeButton("Open / align fracture / close",new Vector2(12,-94),new Vector2(256,32),StartFracture);
-            reason = Text("Eligibility", panel, new Vector2(12, -132), new Vector2(256, 42), 13);
-            MakeButton("Back", new Vector2(12, -186), new Vector2(256, 26), Close);
+            internalBleeding = MakeButton("Open / treat internal bleeding", new Vector2(12, -132), new Vector2(256, 32), StartInternal);
+            reason = Text("Eligibility", panel, new Vector2(12, -170), new Vector2(256, 42), 13);
+            back = MakeButton("Back", new Vector2(12, -224), new Vector2(256, 26), Close);
             overlay.SetActive(false);
         }
 
@@ -139,34 +145,72 @@ namespace CasualtiesSurgery.Game
             text.enableWordWrapping = true; text.text = name; return text;
         }
 
+        static bool HasOpenIncision(Limb selected) => Plugin.Marker(selected,"fracture",FractureStore.HasOpen(selected)) || Plugin.Marker(selected,"internal",InternalBleedingStore.HasOpen(selected));
+        bool ShowsInternal()=>InternalBleedingStore.ShowsProcedure(patient,limb) || Plugin.Marker(limb,"internal",false);
+
         void Refresh()
         {
-            string unavailable = OperationSession.Ineligible(patient, limb);
-            title.text = "SURGERY / " + (limb != null ? limb.fullName : "No limb")+(FractureStore.HasOpen(limb)?" / OPEN":"");
+            string unavailable = Plugin.EntryReason(patient, limb,ProcedureKind.Fragment);
+            title.text = "SURGERY / " + (limb != null ? limb.fullName : "No limb")+(HasOpenIncision(limb)?" / OPEN":"");
             procedure.interactable = unavailable == null;
-            string fractureReason=FractureStore.Ineligible(patient,limb);
+            string fractureReason=Plugin.EntryReason(patient,limb,ProcedureKind.Fracture);
             fracture.interactable=fractureReason==null;
-            fracture.GetComponentInChildren<TextMeshProUGUI>().text=FractureStore.HasOpen(limb)?"Resume open surgery":"Open / align fracture / close";
-            reason.text=unavailable==null || fractureReason==null ? "Free test tools. World stays live." : fractureReason;
+            fracture.GetComponentInChildren<TextMeshProUGUI>().text=Plugin.Marker(limb,"fracture",FractureStore.HasOpen(limb))?"Resume open surgery":"Open / align fracture / close";
+            bool showInternal = ShowsInternal();
+            internalBleeding.gameObject.SetActive(showInternal);
+            reason.rectTransform.anchoredPosition = new Vector2(12, showInternal ? -170 : -132);
+            ((RectTransform)back.transform).anchoredPosition = new Vector2(12, (showInternal ? -224 : -186)-(entryNotice!=null?30:0));
+            reason.rectTransform.sizeDelta=new Vector2(256,entryNotice!=null?70:42);
+            string internalReason = showInternal ? Plugin.EntryReason(patient, limb,ProcedureKind.InternalBleeding) : null;
+            internalBleeding.interactable = internalReason == null;
+            internalBleeding.GetComponentInChildren<TextMeshProUGUI>(true).text = Plugin.Marker(limb,"internal",InternalBleedingStore.HasOpen(limb))
+                ? "Resume internal bleeding surgery" : "Open / treat internal bleeding";
+            reason.text = unavailable == null || fractureReason == null || (showInternal && internalReason == null)
+                ? "Free test tools. World stays live." : showInternal ? internalReason : fractureReason;
+            if(entryNotice!=null)reason.text=entryNotice;
+        }
+        internal void ShowEntryNotice(WoundView source,Limb selected,string message)
+        {
+            if(view==null || source!=view || !view.gameObject.activeInHierarchy || selected==null || selected.body!=view.body)return;
+            patient=view.body;limb=selected;if(overlay==null)Build();entryNotice=message;
+            overlay.SetActive(true);overlay.transform.SetAsLastSibling();panel.localPosition=Vector3.zero;
+            panel.sizeDelta=new Vector2(280,ShowsInternal()?290:252);
+            reason.rectTransform.sizeDelta=new Vector2(256,70);Refresh();
         }
         void Start()
         {
             // Revalidate at click time, even if the button was enabled last frame.
-            if (view == null || !view.gameObject.activeInHierarchy || view.body != patient ||
-                OperationSession.Ineligible(patient, limb) != null) { Refresh(); return; }
+            if(!ValidateClick(ProcedureKind.Fragment))return;
             WoundView source = view; Limb selected = limb;
             Close(); begin(source, selected);
         }
         void StartFracture()
         {
-            if(view==null || !view.gameObject.activeInHierarchy || view.body!=patient || FractureStore.Ineligible(patient,limb)!=null){Refresh();return;}
+            if(!ValidateClick(ProcedureKind.Fracture))return;
             var source=view;var selected=limb;Close();beginFracture(source,selected);
+        }
+        void StartInternal()
+        {
+            if(!ValidateClick(ProcedureKind.InternalBleeding))return;
+            var source = view;
+            var selected = limb;
+            Close();
+            beginInternal(source, selected);
+        }
+        bool ValidateClick(ProcedureKind kind)
+        {
+            entryNotice=null;
+            Plugin.LogEntry("clicked "+kind+"; limb="+(patient?.limbs!=null?Array.IndexOf(patient.limbs,limb):-1));
+            string refusal=view==null?"No health view.":!view.gameObject.activeInHierarchy?"Health view inactive.":view.body!=patient?"Patient changed.":Plugin.EntryReason(patient,limb,kind);
+            if(refusal==null){Plugin.LogEntry("menu validation accepted; closing menu and dispatching "+kind);return true;}
+            Plugin.LogEntry("menu validation refused: "+refusal);Refresh();return false;
         }
         public void Close()
         {
             bool wasOpen = IsOpen;
             if (overlay != null) overlay.SetActive(false);
             patient = null; limb = null;
+            entryNotice=null;
             if (wasOpen) dismiss();
         }
         public void Dispose()

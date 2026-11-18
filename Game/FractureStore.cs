@@ -11,6 +11,9 @@ namespace CasualtiesSurgery.Game
     {
         static readonly ConditionalWeakTable<Limb,FractureState> states=new ConditionalWeakTable<Limb,FractureState>();
         public static FractureState Get(Limb limb)=>states.GetValue(limb,l=>new FractureState());
+        public static bool Contains(Limb limb,FractureState state)=>limb!=null && states.TryGetValue(limb,out var current) && ReferenceEquals(current,state);
+        public static bool OwnsPool(Limb limb,BloodPools pool)=>limb!=null && states.TryGetValue(limb,out var state) &&
+            state.Stage!=FractureStage.Complete && ReferenceEquals(state.Pools[(int)state.Stage],pool);
         public static bool HasOpen(Limb limb)=>limb!=null && states.TryGetValue(limb,out var s) && s.Started && s.Stage!=FractureStage.Complete;
         public static void NewBreak(Limb limb)
         {
@@ -27,6 +30,11 @@ namespace CasualtiesSurgery.Game
         public static string Ineligible(Body body,Limb limb,Minigame owner=null)
         {
             string basic=OperationSession.Ineligible(body,limb,owner,false);if(basic!=null)return basic;
+            return ClinicalIneligible(body,limb);
+        }
+        internal static string ClinicalIneligible(Body body,Limb limb)
+        {
+            string basic=OperationSession.ClinicalIneligible(body,limb,false);if(basic!=null)return basic;
             if(float.IsNaN(limb.boneHealTimer)||float.IsInfinity(limb.boneHealTimer)||float.IsNaN(limb.pain)||float.IsInfinity(limb.pain)||float.IsNaN(limb.muscleHealth)||float.IsInfinity(limb.muscleHealth))return "Invalid fracture values.";
             var state=Get(limb);
             if(state.Started && state.Stage!=FractureStage.Complete)return null;
@@ -38,9 +46,15 @@ namespace CasualtiesSurgery.Game
         public static bool TryClose(Limb limb,int quality,Minigame owner=null)
         {
             if(quality<0 || quality>100 || Ineligible(limb.body,limb,owner)!=null)return false;
-            var s=Get(limb);if(s.Stage!=FractureStage.Closure)return false;
+            return TryCloseClinical(limb,quality);
+        }
+        internal static bool TryCloseClinical(Limb limb,int quality)
+        {
+            if(limb==null || quality<0 || quality>100 || ClinicalIneligible(limb.body,limb)!=null)return false;
+            var s=Get(limb);if(s.Stage!=FractureStage.Closure || s.Pools[(int)FractureStage.Closure].Blocking)return false;
+            if(!OpenSurgery.Close(s,limb.skinHealth,quality,out float healedSkin))return false;
             SurgeryInfection.Apply(limb,s.Coverage,s.OverallQuality(quality));
-            limb.skinHealth=Mathf.Min(100,limb.skinHealth+s.Close(quality));
+            limb.skinHealth=healedSkin;
             if(limb.broken && Array.TrueForAll(s.Aligned,a=>a))limb.boneHealTimer=FractureState.ReducedTimer(limb.boneHealTimer);
             return true;
         }
@@ -72,7 +86,7 @@ namespace CasualtiesSurgery.Game
             limb.infectionAmount=Mathf.Min(100,Mathf.Max(0,limb.infectionAmount)+1+4*(1-Mathf.Min(100,Mathf.Max(0,quality))/100));
         }
     }
-    internal enum SurgeryTool { Forceps,Suture,Scalpel,Gel }
+    internal enum SurgeryTool { Forceps,Suture,Scalpel,Gel,Suction }
     internal interface ISurgery
     {
         bool Ended {get;} bool BlocksToolInput {get;} float HandScale {get;}

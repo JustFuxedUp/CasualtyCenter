@@ -5,6 +5,25 @@ namespace CasualtiesSurgery.Procedures
     {
         public const float FlowMlPerSecond=2,FragmentMl=2,SectionMl=.4f;
         public static float Deposit(float current,float amount,float goal)=>Math.Min(goal,Math.Max(0,current)+Math.Max(0,amount));
+        public const int IncisionSections = 9;
+        public static bool Disinfect(float[] coverage, int index, float ml)
+        {
+            if (coverage == null || index < 0 || index >= coverage.Length || !(ml > 0) || float.IsInfinity(ml)) return false;
+            float before = coverage[index];
+            coverage[index] = Deposit(before, ml, SectionMl);
+            return coverage[index] > before;
+        }
+
+        public static float IncisionCoverage(float[] sections)
+        {
+            float sum = 0;
+            foreach (float amount in sections) sum += amount / SectionMl;
+            return sum / sections.Length;
+        }
+
+        public static bool ValidIncisionCoverage(float[] sections) => sections != null &&
+            sections.Length == IncisionSections && Array.TrueForAll(sections, amount => amount >= 0 && amount <= SectionMl + .001f);
+
         public static float InfectionRisk(float coverage,float immunity,float quality,float multiplier)
         {
             if(float.IsNaN(immunity)||float.IsInfinity(immunity))immunity=100;

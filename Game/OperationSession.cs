@@ -16,6 +16,7 @@ namespace CasualtiesSurgery.Game
         readonly Vector3 origin;
         readonly int scene;
         readonly float skinRecovery, bleedingReduction;
+        readonly Func<string> authorityGuard;
         public int Stitches { get; private set; }
         public OperationSession(Body patient, Limb limb, float skinRecovery, float bleedingReduction, Minigame owner = null)
         {
@@ -24,12 +25,27 @@ namespace CasualtiesSurgery.Game
             origin = patient.transform.position; scene = patient.gameObject.scene.handle;
             this.skinRecovery = skinRecovery; this.bleedingReduction = bleedingReduction;
         }
+        internal OperationSession(Body patient,Limb limb,float skinRecovery,float bleedingReduction,Func<string> authorityGuard)
+            : this(patient,limb,skinRecovery,bleedingReduction,(Minigame)null)
+        { this.authorityGuard=authorityGuard ?? throw new ArgumentNullException(nameof(authorityGuard)); }
         public static string Ineligible(Body patient, Limb limb, Minigame allowedMinigame = null, bool requireFragments = true)
         {
             if (MultiplayerApi.IsRunning) return "Surgery MVP is singleplayer only.";
             if (patient == null || PlayerCamera.main == null || PlayerCamera.main.body != patient)
                 return "No local patient.";
-            if (!patient.alive || !patient.conscious) return "You must be alive and conscious.";
+            string clinical = ClinicalIneligible(patient, limb, requireFragments);
+            if (clinical != null) return clinical;
+            if(!patient.conscious)return "You must be conscious to operate.";
+            if (MinigameBase.main != null && MinigameBase.main.currentMinigame != null &&
+                !ReferenceEquals(MinigameBase.main.currentMinigame, allowedMinigame))
+                return "Finish the current game minigame first.";
+            return null;
+        }
+        // Transport-independent clinical checks; sender permission belongs to the caller.
+        public static string ClinicalIneligible(Body patient, Limb limb, bool requireFragments = true)
+        {
+            if (patient == null) return "No patient.";
+            if (!patient.alive) return "Patient must be alive.";
             if (limb == null || limb.body != patient || patient.limbs == null || Array.IndexOf(patient.limbs, limb) < 0)
                 return "Limb no longer belongs to this patient.";
             if (limb.dismembered) return "Detached limbs cannot be treated.";
@@ -38,16 +54,13 @@ namespace CasualtiesSurgery.Game
             if (float.IsNaN(limb.skinHealth) || float.IsInfinity(limb.skinHealth) || limb.skinHealth < 0 || limb.skinHealth > 100 ||
                 float.IsNaN(limb.bleedAmount) || float.IsInfinity(limb.bleedAmount) || limb.bleedAmount < 0)
                 return "Invalid wound values; treatment stopped.";
-            if (MinigameBase.main != null && MinigameBase.main.currentMinigame != null &&
-                !ReferenceEquals(MinigameBase.main.currentMinigame, allowedMinigame))
-                return "Finish the current game minigame first.";
             return null;
         }
         public string InvalidReason()
         {
             if (owner != null && (MinigameBase.main == null || !ReferenceEquals(MinigameBase.main.currentMinigame, owner)))
                 return "This operation no longer owns the native minigame.";
-            string reason = Ineligible(Patient, Limb, owner);
+            string reason = authorityGuard==null ? Ineligible(Patient, Limb, owner) : authorityGuard() ?? ClinicalIneligible(Patient,Limb);
             if (reason != null) return reason;
             if (Patient.gameObject.scene.handle != scene || Vector3.Distance(Patient.transform.position, origin) > 1.5f)
                 return "Patient moved too far or changed scene.";
@@ -75,7 +88,7 @@ namespace CasualtiesSurgery.Game
         }
         public bool CompleteGelClosure(FragmentSite site)
         {
-            if(site==null || !site.Extracted || site.Completed || site.GelMl<GelRules.FragmentMl)return false;
+            if(site==null || site.Pools.Blocking || !site.Extracted || site.Completed || site.GelMl<GelRules.FragmentMl)return false;
             var board=FragmentBoardStore.Get(Limb);
             if(!board.Sites.Contains(site) || !CompleteContinuousSuture())return false;
             return board.Complete(site.Id);

@@ -29,7 +29,7 @@ dotnet run --project .\tests\ProcedureChecks.csproj -c Release --no-restore
 git diff --check
 ```
 
-Use --no-restore only when dependencies have already been restored. Run the pinned Restore-Libraries script only if needed. Do not download/update CUCoreLib, BepInEx or Harmony for a cosmetic request. Audio checks use optional SURGERY_AUDIO_TEST_DIR pointing to six local WAVs; they verify decoding, not playback.
+Use --no-restore only when dependencies have already been restored. Run the pinned Restore-Libraries script only if needed. Do not download/update CUCoreLib, BepInEx or Harmony for a cosmetic request. Audio checks use optional SURGERY_AUDIO_TEST_DIR pointing to eight local WAVs; they verify decoding, not playback.
 
 | Change | Minimum useful validation |
 | --- | --- |
@@ -39,12 +39,14 @@ Use --no-restore only when dependencies have already been restored. Run the pinn
 | Hooks, game update, dependencies | Verify current native signatures, build, inspect startup log and affected gameplay |
 | Multiplayer | Explicit host/client scenarios before enabling the gate |
 
+For Together lifecycle changes, also build tests/MinigameInterop/MinigameInterop.csproj in Release and run its net472 executable. It links the production compatibility guard and installed real Harmony library, with minimal native/Together doubles. It verifies actual patch ordering and interception, not Unity or socket behavior.
+
 ## Installation and packages
 
-1. Discover existing CasualtiesSurgery.dll files under BepInEx/plugins. The directory may be nested (currently under Unused); don't create a second loadable copy. Stop and resolve ambiguity if more than one exists.
+1. Discover existing CasualtiesSurgery.dll files under BepInEx/plugins. The directory may be nested; don't create a second loadable copy. Stop and resolve ambiguity if more than one exists.
 2. Check whether CasualtiesUnknown is running. Never kill it. If running, package the update and ask once whether the user will close it; a response is not a substitute for checking the process again.
 3. Back up the installed DLL to ignored work/backups before replacement. Preserve relevant logs before a new launch overwrites them.
-4. Copy the net472 DLL; retain Audio beside it. Audio contains Bad-Ok, Great, Mistake, SutureStitch, ForcepsGrab and Scalpel WAVs. No new sound changes are required for a code-only patch.
+4. Copy the net472 DLL; retain Audio beside it. Audio contains Bad-Ok, Great, Mistake, SutureStitch, ForcepsGrab, Scalpel, Gel and Suction WAVs. No new sound changes are required for a code-only patch.
 5. Compare SHA-256 of source and installed files. Record installed version/hash separately from built version/hash. Package to the user's designated outputs directory when requested/needed.
 6. Report whether it was installed, only packaged, or blocked. Do not call a branch push a PR or a build a playtest. Preserve the old DLL for rollback; warn that older code may not understand new saves before proposing a downgrade.
 
@@ -52,7 +54,7 @@ BepInEx HideManagerGameObject=true was required in the initial setup. The F8 pan
 
 ## Git and review
 
-Inspect branch/status first. Use codex/ branches; stage explicit task files. Keep unrelated user/pending code out of the commit. Commit/push when authorized by the current development task/session. Do not auto-merge, force-push or publish a release. If the UI cannot create a PR, a verified compare link is enough; don't churn through tools trying repeatedly.
+Inspect branch/status first. Use the existing codex/development branch for ongoing work and PR into main. Keep codex/project-handoff for historical reference; do not create a new branch per feature or adjustment. Stage explicit task files and keep unrelated pending code out of the commit. Commit/push when authorized by the development task/session. Do not auto-merge, force-push or publish a release. A compare link is not a created PR; report it accurately if PR creation is unavailable.
 
 PR description should state the observed problem, resulting behavior, implementation boundaries, tests actually run and live checks remaining. Include dependency docs when adding a library. Keep supplied placeholder sounds and native assets out of Git. Check .gitignore before staging.
 

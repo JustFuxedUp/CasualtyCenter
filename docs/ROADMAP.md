@@ -2,7 +2,11 @@
 
 Do one packet per task unless the user groups them. Suggested order is a starting point; explicit user priorities win. This file is not authorization to implement the whole roadmap.
 
-## P0: finish the already-built knife correction
+## Current priority: multiplayer preparation and integration
+
+The knife correction and initial internal-bleeding implementation below are completed historical packets, retained for context only. Do not implement them again. Current gameplay is recorded in STATUS. The 0.14.0 test build adds a shared native authority view to the existing handlers/transport. Next run [MULTIPLAYER-TEST](MULTIPLAYER-TEST.md), diagnose observed failures and verify actual host/client health confirmation before changing the default gate. Do not repeat the completed view/queue integration from scratch.
+
+## Completed: knife correction
 
 Input: STATUS and KNIFE-ANCHOR. Review/preserve the pending patch, commit it separately from docs, install when permitted and game closed, then confirm visible tip = trail origin = native hand contact. Test both hand slots, rotation, scale and tool switching. Finish by recording actual installed hash/version and the user's visual result. Do not design a new scalpel asset yet.
 
@@ -14,7 +18,7 @@ Input: STATUS and KNIFE-ANCHOR. Review/preserve the pending patch, commit it sep
 
 Completion: a short pass/fail record with reproduction, version and remaining issues, not another broad audit.
 
-## P2: internal-bleeding procedure design slice
+## Completed: initial internal-bleeding procedure design slice
 
 Before implementation, inspect only relevant native fields, causes, healing methods and save behavior. Known: Body.internalBleeding exists. Unknown: how reliably to attribute it to a limb/section, and how surgery should distinguish external injury changes from its own progress.
 
@@ -34,7 +38,7 @@ Design item capabilities rather than hard-coding every vanilla/modded item name.
 
 ## P5: host-authoritative multiplayer
 
-First identify the installed Together version and supported APIs. Define patient/limb/operation IDs, authority, exclusive/concurrent access, sequence/revision handling, reconnect/resume, once-only health and resource commits. The current CUCoreLib float-field helper is not enough for remote-patient operations or integer fragment counts. Keep the existing multiplayer gate until integration tests pass for self/other treatment, duplication, latency, disconnects, death, limb loss and joining mid-operation.
+The backend for self-treatment is implemented against inspected Together 5.5 APIs; do not repeat that foundation. Complete view/command routing and live acceptance from MULTIPLAYER. Other-patient access and host migration remain unsupported. Keep the existing multiplayer gate until actual self-treatment tests pass for host/client, duplication, latency, disconnects, death, limb loss, joining mid-operation and native health confirmation. Treat other-patient support as a separate access-policy feature.
 
 ## Deferred polish
 

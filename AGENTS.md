@@ -24,10 +24,21 @@ User instructions take precedence over these repository defaults. Preserve unrel
 - Preserve stable saved IDs/layouts. Migrate explicitly; do not silently re-roll unfinished operations.
 - Keep singleplayer gating until host-authoritative multiplayer is implemented and tested. Never assume Together synchronization from a field write.
 - No real inventory consumption, recipes or surgery-kit behavior until that work is requested. Counters currently measure only debug usage.
+- Retain concise normal-flow lifecycle logs permanently: entry clicks/validation, startup acceptance or refusal, session/stage transitions and cleanup. Every silent startup return needs a reason. Log at events, not each frame or held input sample; never let diagnostics change a native decision. Passing isolated tests does not cover unobserved live startup paths.
 
 ## Delivery discipline
 
-Use `codex/` branches. Stage specific files; do not absorb unrelated local work. Do not reset, force-push, merge or publish releases without authorization. Keep gameplay fixes separate from documentation work when practical.
+Use the existing `codex/development` branch for ongoing commits and pushes; review through PRs into `main`. Preserve `codex/project-handoff` as history. Do not create a branch per adjustment. Stage specific files; do not absorb unrelated local work. Do not reset, force-push, merge or publish releases without authorization. Keep gameplay fixes separate from documentation work when practical.
+
+## Lessons from accepted user feedback
+
+- Before adding a procedure, trace an existing comparable operation end to end. Account for entry, gel prep, incision cost/refund, mistakes, completion ratings and audio, temporary sutures, interruption and save/load. Reuse production helpers and verify both callers; copying the visible puzzle is insufficient.
+- Treat latest explicit tuning as authoritative: distinguish a requested shorter timer from a reported timer bug. Read current PROJECT values before changing balance. Keep per-wound timers independent, reset on the specified action, and test elapsed time through interruption.
+- Completion includes visible and audible feedback for every applicable slot and procedure. Suction, bruise healing, fragment gel closure and laceration closure are Good completions, not accuracy contests. Temporary drawn sutures clear on cancellation and completion; final wound art is separate.
+- Preserve saved randomized layouts and full-angle rotations. Validate input and rendered geometry together, including rotated wounds and both hands. Do not repair visual offsets by moving native contact points.
+- Most upcoming procedures use open surgery: follow ARCHITECTURE's shared lifecycle direction and MULTIPLAYER's authority boundaries. Surface-operation architecture remains undecided.
+- Complete authorized work without repeatedly asking for the same approval. Report actual source, committed, pushed and installed states distinctly; a merged historical PR does not include later uncommitted gameplay.
+- Usage reset timing is context, not a request to spend the entire allowance or run indefinitely. Keep the requested pass substantive, bounded and reviewable.
 
 Follow `docs/WORKFLOW.md` for build/install. Never kill the user's game. Install only into the one discovered plugin location, with a backup and hash verification; otherwise leave a clearly labeled package. A folder named `Unused` is not proof a BepInEx plugin is disabled. Do not add a duplicate DLL.
 

@@ -20,6 +20,9 @@ namespace UnityEngine
 namespace CUCoreLib.Networking { public static class MultiplayerApi { public static bool IsRunning; } }
 public class Body
 {
+    public enum LimbNum { UpTorso = 1, DownTorso = 2 }
+    public float internalBleeding, bloodScale = 1;
+    public float bloodToLiters(float amount) => amount * .025f;
     public bool alive = true, conscious = true;
     public float immunity=100,infectionChanceMultiplier=1;
     public Limb[] limbs;

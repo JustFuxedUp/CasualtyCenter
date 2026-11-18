@@ -7,6 +7,9 @@ Read AGENTS.md and STATUS first for development, then choose one relevant docume
 - [STATUS](STATUS.md): exact pending work, installed versus built version, evidence and known issues.
 - [PROJECT](PROJECT.md): gameplay contract, balance defaults, accepted future direction.
 - [ARCHITECTURE](ARCHITECTURE.md): code ownership, native findings, persistence and transaction boundaries.
+- [MULTIPLAYER](MULTIPLAYER.md): implemented authority/transport/view contract, command payloads and remaining host/client acceptance work.
+- [TEST-0.15.0](TEST-0.15.0.md): current tutorial-first setup, two-player test sequence, measurements and report template.
+- [MULTIPLAYER-TEST](MULTIPLAYER-TEST.md): historical 0.14.x and development test notes.
 - [WORKFLOW](WORKFLOW.md): model routing, budget discipline, build/test/install/review process.
 - [ROADMAP](ROADMAP.md): bounded next work packets with acceptance criteria.
 - [LIBRARIES](LIBRARIES.md): pinned CUCoreLib, official API links, Harmony/BepInEx references.

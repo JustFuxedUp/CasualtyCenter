@@ -8,8 +8,8 @@ namespace CasualtiesSurgery.Game
 {
     public sealed class SurgeryFeedback : MonoBehaviour
     {
-        AudioSource source,cutLoop;
-        object cutOwner;int cutFrame=-10;
+        AudioSource source,toolLoop;
+        object loopOwner;int loopFrame=-10;
         readonly Dictionary<string,AudioClip> clips=new Dictionary<string,AudioClip>();
         sealed class Popup { public TextMeshProUGUI Text;public float Age;public Vector2 Origin; }
         readonly List<Popup> popups=new List<Popup>();
@@ -17,8 +17,8 @@ namespace CasualtiesSurgery.Game
         public void Initialize(string folder,float volume,Action<string> warn)
         {
             source=gameObject.AddComponent<AudioSource>();source.playOnAwake=false;source.spatialBlend=0;source.volume=volume;
-            cutLoop=gameObject.AddComponent<AudioSource>();cutLoop.playOnAwake=false;cutLoop.spatialBlend=0;cutLoop.volume=volume;cutLoop.loop=true;
-            foreach(string name in new[]{"Bad-Ok","Great","Mistake","SutureStitch","ForcepsGrab","Scalpel"})
+            toolLoop=gameObject.AddComponent<AudioSource>();toolLoop.playOnAwake=false;toolLoop.spatialBlend=0;toolLoop.volume=volume;toolLoop.loop=true;
+            foreach(string name in new[]{"Bad-Ok","Great","Mistake","SutureStitch","ForcepsGrab","Scalpel","Gel","Suction"})
                 try
                 {
                     var wave=WaveData.Read(File.ReadAllBytes(Path.Combine(folder,name+".wav")));
@@ -28,13 +28,32 @@ namespace CasualtiesSurgery.Game
                 catch(Exception error) {warn("Could not load surgery sound "+name+": "+error.Message);}
         }
         void Play(string name) {if(source!=null && clips.TryGetValue(name,out var clip))source.PlayOneShot(clip);}
-        public void Cutting(object owner,bool active)
+        internal void HeldTool(object owner, SurgeryTool tool, bool held)
         {
-            if(!active){if(ReferenceEquals(cutOwner,owner)){cutLoop.Stop();cutOwner=null;}return;}
-            cutOwner=owner;cutFrame=Time.frameCount;
-            if(!cutLoop.isPlaying && clips.TryGetValue("Scalpel",out var clip)){cutLoop.clip=clip;cutLoop.Play();}
+            string name = tool == SurgeryTool.Scalpel ? "Scalpel" : tool == SurgeryTool.Gel ? "Gel" :
+                tool == SurgeryTool.Suction ? "Suction" : null;
+            if (!held || Time.timeScale <= 0 || name == null || !clips.TryGetValue(name, out var clip))
+            {
+                StopLoop(owner);
+                return;
+            }
+            loopOwner = owner;
+            loopFrame = Time.frameCount;
+            if (toolLoop.clip == clip && toolLoop.isPlaying) return;
+            toolLoop.Stop();
+            toolLoop.clip = clip;
+            toolLoop.Play();
         }
-        void LateUpdate(){if(cutOwner!=null && Time.frameCount>cutFrame){cutLoop.Stop();cutOwner=null;}}
+        internal void StopLoop(object owner)
+        {
+            if (!ReferenceEquals(loopOwner, owner)) return;
+            toolLoop.Stop();
+            loopOwner = null;
+        }
+        void LateUpdate()
+        {
+            if (loopOwner != null && Time.frameCount > loopFrame) StopLoop(loopOwner);
+        }
         public void Grab() {Play("ForcepsGrab");}
         public void Mistake() {Play("Mistake");}
         public void Stitch()
@@ -42,9 +61,12 @@ namespace CasualtiesSurgery.Game
             if(Time.unscaledTime-lastStitch<0.07f)return;
             lastStitch=Time.unscaledTime;Play("SutureStitch");
         }
-        public void Result(int score,Vector3 position,TMP_FontAsset font,Canvas canvas)
+        internal void Good(Vector3 position, TMP_FontAsset font, Canvas canvas) => ShowResult("Good", position, font, canvas);
+        public void Result(int score,Vector3 position,TMP_FontAsset font,Canvas canvas) =>
+            ShowResult(ResultRating.Label(score), position, font, canvas);
+        void ShowResult(string rating, Vector3 position, TMP_FontAsset font, Canvas canvas)
         {
-            string rating=ResultRating.Label(score);Play(rating=="Great"?"Great":"Bad-Ok");
+            Play(rating=="Great"?"Great":"Bad-Ok");
             if(canvas==null)return;
             var go=new GameObject("SurgeryResult",typeof(RectTransform),typeof(TextMeshProUGUI));
             var rect=(RectTransform)go.transform;rect.SetParent(canvas.transform,false);rect.sizeDelta=new Vector2(140,40);
@@ -65,7 +87,7 @@ namespace CasualtiesSurgery.Game
         }
         void OnDestroy()
         {
-            if(cutLoop!=null){cutLoop.Stop();Destroy(cutLoop);}if(source!=null)Destroy(source);
+            if(toolLoop!=null){toolLoop.Stop();Destroy(toolLoop);}if(source!=null)Destroy(source);
             foreach(var popup in popups)if(popup.Text!=null)Destroy(popup.Text.gameObject);
             foreach(var clip in clips.Values)if(clip!=null)Destroy(clip);
         }
