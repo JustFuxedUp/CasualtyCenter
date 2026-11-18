@@ -50,6 +50,7 @@ namespace CasualtiesSurgery.Game
                     else if(Tool==SurgeryTool.Gel)Gel(contact,point,seconds);
                     else
                     {
+                        if(presentation.ResourceBusy("*"))return;
                         if(kind!=ProcedureKind.Fragment && ((kind==ProcedureKind.Fracture || Stage!=1)&&Outer.Blocking))return;
                         var payload=Point(point);payload["active"]=true;payload["seconds"]=seconds;
                         presentation.Submit("scalpel.sample",payload,"scalpel");cutting=true;
@@ -75,7 +76,7 @@ namespace CasualtiesSurgery.Game
                 float distance=part.Pools.Distance(contact,out int candidate);
                 if(distance>=nearest)continue;nearest=distance;slot=candidate;target=part.Id;
             }
-            if(slot<0)return;
+            if(slot<0 || presentation.ResourceBusy(target<0?"*":"wound:"+target))return;
             var payload=TargetPoint(target,point);payload["slot"]=slot;payload["seconds"]=seconds;
             if(presentation.Submit("pool.suction",payload,"suction:"+target+":"+slot))
                 (target<0?outerPool:parts.Find(p=>p.Id==target)?.Pools)?.Preview(slot,seconds);
@@ -87,7 +88,7 @@ namespace CasualtiesSurgery.Game
                 Part selected=null;Vector2 selectedLocal=Vector2.zero;float best=44*44;
                 foreach(var part in parts)
                 {
-                    var site=B.Sites.Find(s=>s.Id==part.Id);if(site.Completed || !site.Extracted || site.Pools.Blocking)continue;
+                    var site=B.Sites.Find(s=>s.Id==part.Id);if(site.Completed || !site.Extracted || site.Pools.Blocking || presentation.ResourceBusy("wound:"+part.Id))continue;
                     Vector2 local=part.Wound.InverseTransformPoint(contact);
                     float beyond=Mathf.Max(0,Mathf.Abs(local.y)-part.Layout.Length/2);float distance=(local.x*local.x+beyond*beyond)*scale*scale;
                     if(distance>=best)continue;selected=part;selectedLocal=local;best=distance;
@@ -115,7 +116,7 @@ namespace CasualtiesSurgery.Game
             if(host.handStartedClicking && boneViewport.rect.Contains(point))
                 for(int n=0;n<bones.Count;n++)
                 {
-                    if(F.Aligned[n])continue;Vector2 local=bones[n].InverseTransformPoint(contact);var rect=bones[n].rect;
+                    if(F.Aligned[n] || presentation.ResourceBusy("bone:"+n))continue;Vector2 local=bones[n].InverseTransformPoint(contact);var rect=bones[n].rect;
                     if(Mathf.Abs(local.x)>42 || local.y<rect.yMin-12 || local.y>rect.yMax+12)continue;
                     grip=n;Vector2 delta=point-bones[n].anchoredPosition;startPointer=Mathf.Atan2(delta.y,delta.x)*Mathf.Rad2Deg;startAngle=F.Angles[n];
                     var payload=Point(point);payload["bone"]=n;presentation.Submit("bone.grip",payload);Plugin.Feedback?.Grab();break;
@@ -137,7 +138,7 @@ namespace CasualtiesSurgery.Game
                 foreach(var part in parts)
                 {
                     var w=I.Wounds[part.Id];Vector2 local=part.Wound.InverseTransformPoint(field.TransformPoint(point));
-                    if(!w.Laceration || w.Phase!=InternalWoundPhase.Open || w.Pools.Blocking || Mathf.Abs(local.x)<17 || Mathf.Abs(local.x)>48 || Mathf.Abs(local.y)>66)continue;
+                    if(presentation.ResourceBusy("wound:"+part.Id) || !w.Laceration || w.Phase!=InternalWoundPhase.Open || w.Pools.Blocking || Mathf.Abs(local.x)<17 || Mathf.Abs(local.x)>48 || Mathf.Abs(local.y)>66)continue;
                     grip=part.Id;gripLocal=local;presentation.Submit("laceration.grip",TargetPoint(grip,point));Plugin.Feedback?.Grab();break;
                 }
             if(grip<0)return;
@@ -161,7 +162,7 @@ namespace CasualtiesSurgery.Game
             if(host.handStartedClicking)
                 foreach(var part in parts)
                 {
-                    var site=B.Sites.Find(s=>s.Id==part.Id);if(site.Completed || site.Extracted || site.Pools.Blocking || presentation.PreviewingExtraction(part.Id))continue;
+                    var site=B.Sites.Find(s=>s.Id==part.Id);if(site.Completed || site.Extracted || site.Pools.Blocking || presentation.ResourceBusy("wound:"+part.Id) || presentation.PreviewingExtraction(part.Id))continue;
                     var point=ExtractionPoint(part,contact);if(!FragmentPull.CanGrip(point.x,point.y))continue;
                     grip=part.Id;pull=new FragmentPull(2,(part.Layout.Length*.84f*.35f+8)/part.Layout.Length,.005f);pull.Begin(point.x,point.y);
                     grabOffset=part.Fragment.position-contact;presentation.Submit("fragment.grip",TargetPoint(grip,point));Plugin.Feedback?.Grab();break;
@@ -209,6 +210,7 @@ namespace CasualtiesSurgery.Game
         }
         bool SutureEligible(Part part)
         {
+            if(presentation.ResourceBusy("wound:"+part.Id))return false;
             if(kind==ProcedureKind.Fragment){var site=B.Sites.Find(s=>s.Id==part.Id);return !site.Completed && site.Extracted && !site.Pools.Blocking;}
             var w=I.Wounds[part.Id];return w.Laceration && w.Phase==InternalWoundPhase.Pinched && !w.Pools.Blocking;
         }

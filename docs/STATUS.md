@@ -2,7 +2,19 @@
 
 Updated: 2026-11-18. Verify Git/process/file state before acting.
 
-## Unreleased fragment prediction pass (2026-11-18)
+## 0.16.0 cooperative test release - current state (2026-11-18)
+
+User authorized simultaneous/cooperative implementation, development-branch pushes, and a test release. Source, build, installed DLL and client package are now **0.16.0**. This supersedes the unreleased/install notes below; older sections remain historical. No main merge or public release publication.
+
+Implemented: simultaneous operations on different patients and different limbs; up to eight independently consented surgeons in the same exact operation. Different procedures on one limb still conflict. Internal bleeding excludes separate operations across the patient but permits joining its own shared episode. Dispatcher state/revision/timers are shared once; each participant has an independent lease, journal, input handler, elapsed-time budget and body/movement binding. Per-wound/bone reservations protect held gestures. Snapshots show surgeon count and other participants' reservations. Unrelated resource changes can rebase delayed commands; same-resource/stage/timer changes still require fresh state. Cancel, leave, expiry and disconnect do not erase another surgeon's input or consent. Clinical completion remains exactly once. Fragment releases use the preceding presentation-only fade, with authoritative rollback/confirmation.
+
+Verification: **553 procedure/gesture/session checks passed**, including independent patient/limb leases, eight-participant capacity, late joins, competing grips, fragment completion while another wound is held, exact-once replay, independent bone alignment, shared internal repair/closure, consent isolation, movement/disconnect/expiry and once-per-operation timers. **23 real-Harmony lifecycle checks passed**. Plugin Release: zero warnings/errors. Harmony harness NU1900 remains the unavailable vulnerability feed, not a compile/test failure. Procedure runner now catches assertion errors, prints them to stderr and exits nonzero instead of triggering Windows crash popups. Diff check passed. These checks do not certify native rendering or socket timing.
+
+Installed with game closed into the single existing plugin folder; configuration and installed audio preserved. Built/installed/archive DLL SHA-256: **E509DF51184D8F42E9FCDEA0B4617C4C05C4BA4532D19B79B2DA8478C2E7EB11**. Backup: work/backups/CasualtiesSurgery-0.15.1-before-0.16.0-20261118-095813.dll. Logs preserved under work/diagnostics/before-0.16.0-20261118-095813 (the mixed-version originals also remain archived). Client ZIP: CasualtyCenter-0.16.0-multiplayer-test.zip in the established outputs directory, with DLL, eight WAVs, README, TESTING.md and checksum manifest; archive SHA-256: **7AE350A2B3582BAA8761BE869499BCB2D03635F13811DB6BD4A3FA62F2F50CF3**.
+
+Next: follow [TEST-0.16.0](TEST-0.16.0.md), verifying both loaded version lines before testing. First solo baseline, then separate patients/limbs, shared fragments, contested grips, shared fracture/internal repair, and participant leave/reconnect. Native consent UI under concurrent requests, latency/reservation displays, actual health replication and shared-session recovery remain live acceptance work. Remote hand cursors, spectator-only boards and host migration remain unimplemented. Keep the authority-view development gate enabled only for testing. Source remains on codex/development; check Git for exact commit/push state.
+
+## Fragment prediction pass (historical pre-0.16.0)
 
 Latest scan found a mixed-version test: attached client log loaded 0.15.0 (line 69), host loaded 0.15.1 (line 56). Neither had startup refusals. Client recorded 10 suction, 8 fragment-gel, 2 wound-gel, 2 scalpel and 1 laceration-drag rejections; host recorded 1 laceration-drag rejection. Client also logged 298 Together CLIENT_Tutorial_GlobalState errors; no causal link to surgery established. Both complete logs are preserved under work/diagnostics/mixed-versions-20261118-093838. The new evidence does not test 0.15.1's client scalpel correction. Retest with matching versions before another anchor change.
 

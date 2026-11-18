@@ -25,9 +25,9 @@ static class SharedTreatmentChecks
         now=31;client.Begin(ProcedureKind.Fracture,0,"7");Deliver();answer(true);answer(false);
         client.Begin(ProcedureKind.Fracture,0,"7");Deliver();check(client.Active,"Accepted patient prompt permits one operator lease; repeated callback cannot reverse it");
         string selfOpen=new JObject { ["requestId"]="patient-competes",["type"]="open",["version"]=1,["procedure"]=(int)ProcedureKind.Fracture,["limb"]=0 }.ToString();
-        check((string)JObject.Parse(router.Handle(patientId,selfOpen))["error"]=="busy" && client.Active,"Patient cannot evict a remote surgeon's active lease");
+        check((bool)JObject.Parse(router.Handle(patientId,selfOpen))["ok"] && client.Active,"Patient can join a remote surgeon without evicting the existing participant");
         var otherLimb=JObject.Parse(selfOpen);otherLimb["limb"]=1;otherLimb["requestId"]="other-limb";
-        check((string)JObject.Parse(router.Handle(patientId,otherLimb.ToString()))["error"]=="busy","Single-surgeon lease excludes operations on other limbs of the same patient");
+        check((bool)JObject.Parse(router.Handle(patientId,otherLimb.ToString()))["ok"],"Independent limbs permit concurrent operations on the same patient");
         client.Command("incision.cut",new JObject { ["section"]=0,["x"]=0,["y"]=120 });string cut=packets.Dequeue();
         var applied=JObject.Parse(router.Handle(surgeonId,cut));float skin=limb.skinHealth;
         check(skin<80 && surgeon.limbs[0].skinHealth==90 && ReferenceEquals(router.ResultPatient(applied),patient),"Remote action changes and identifies the patient, never the operator");

@@ -15,7 +15,12 @@ static class Program
         procedure.RecordSuccessfulExtraction();
         return procedure;
     }
-    static void Main()
+    static int Main()
+    {
+        try {Run();return 0;}
+        catch(Exception error) {Console.Error.WriteLine("Procedure checks failed: "+error);return 1;}
+    }
+    static void Run()
     {
         var p = new FragmentProcedure();
         Check(!p.TryCompleteSuture(2, 60, 3, 5, 1, out _), "No reward before extraction");
@@ -65,6 +70,7 @@ static class Program
         NetworkFlowChecks.Run(Check);
         RemoteOverviewChecks.Run(Check);
         SharedTreatmentChecks.Run(Check);
+        CooperativeChecks.Run(Check);
         InternalNetworkChecks.Run(Check);
         RecoveryChecks.Run(Check);
         TransportChecks.Run(Check);

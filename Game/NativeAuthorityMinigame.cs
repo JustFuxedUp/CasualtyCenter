@@ -197,7 +197,7 @@ namespace CasualtiesSurgery.Game
                 part.Fragment.anchorMin=part.Fragment.anchorMax=new Vector2(0,.5f);float length=layout.Length*.84f;
                 var size=sprite.rect.size*(length/sprite.rect.height);size.x*=1.25f;part.Fragment.sizeDelta=size;part.Fragment.localEulerAngles=new Vector3(0,0,-90);
                 part.FragmentOrigin=new Vector2(length*.15f,0);part.Fragment.anchoredPosition=part.FragmentOrigin;
-                part.Pools=new BloodPoolVisual(site.Pools,field,pos,host,null);parts.Add(part);
+                part.Pools=new BloodPoolVisual(site.Pools,field,pos,host,null);part.Label=Label(field,pos+Vector2.down*60,new Vector2(160,26),16);parts.Add(part);
             }
         }
         void RefreshState()
@@ -205,13 +205,18 @@ namespace CasualtiesSurgery.Game
             if(prep!=null){prep.Bind(Coverage);prep.Refresh(Stage==0);}
             if(outerPool!=null){outerPool.Bind(Outer);outerPool.Refresh();}
             for(int n=0;n<dots.Count;n++)dots[n].gameObject.SetActive(!(kind==ProcedureKind.Fracture?F.Cuts:I.Cuts)[n]);
-            for(int n=0;n<bones.Count;n++)if(grip!=n)bones[n].localEulerAngles=new Vector3(0,0,F.Angles[n]);
+            for(int n=0;n<bones.Count;n++)
+            {
+                if(grip!=n)bones[n].localEulerAngles=new Vector3(0,0,F.Angles[n]);
+                bones[n].GetComponent<Image>().color=presentation.ResourceBusy("bone:"+n)?new Color(.55f,.65f,.8f):new Color(.88f,.84f,.7f);
+            }
             foreach(var part in parts)
             {
                 if(kind==ProcedureKind.Fragment)
                 {
                     var site=B.Sites.Find(s=>s.Id==part.Id);bool visible=site!=null && !site.Completed;
                     part.Wound.gameObject.SetActive(visible);part.Pools.Bind(site.Pools);part.Pools.Refresh(visible);
+                    part.Label.text=presentation.ResourceBusy("wound:"+part.Id)?"In use by surgeon":"";
                     bool preview=presentation.PreviewingExtraction(part.Id);
                     float opacity=presentation.ExtractionOpacity(part.Id);
                     part.Fragment.gameObject.SetActive(visible && (preview?opacity>0:!site.Extracted));
@@ -229,7 +234,7 @@ namespace CasualtiesSurgery.Game
                         part.Wound.sizeDelta=new Vector2(w.Phase!=InternalWoundPhase.Open?12:grip==part.Id?LacerationDrag.Width(gripLocal.x):64,108);
                         part.Stitches.gameObject.SetActive(repaired);
                     }
-                    part.Label.text=repaired?(w.Laceration?"Stitched":"Healed"):w.Phase==InternalWoundPhase.Pinched?"Suture · "+Mathf.CeilToInt(Mathf.Max(0,w.Seconds-(float)presentation.SnapshotAge))+"s":w.Laceration?"Laceration":"Bruise";
+                    part.Label.text=presentation.ResourceBusy("wound:"+part.Id)?"In use by surgeon":repaired?(w.Laceration?"Stitched":"Healed"):w.Phase==InternalWoundPhase.Pinched?"Suture · "+Mathf.CeilToInt(Mathf.Max(0,w.Seconds-(float)presentation.SnapshotAge))+"s":w.Laceration?"Laceration":"Bruise";
                 }
             }
             if(kind==ProcedureKind.Fragment && parts.All(p=>!p.Wound.gameObject.activeSelf) && B.Remaining>0)BuildStage();
@@ -272,7 +277,7 @@ namespace CasualtiesSurgery.Game
         {
             if(heading==null || Ended)return;
             if(!presentation.Ready){heading.text="Connecting surgery…";host.guideText.text="Waiting for the host. Right-click outside to cancel.";return;}
-            heading.text=limb.fullName+" / "+(kind==ProcedureKind.Fragment?B.Remaining+" wounds / page "+(page+1):kind==ProcedureKind.Fracture?F.Stage.ToString():I.Stage.ToString())+" / "+Tool;
+            heading.text=limb.fullName+" / "+(kind==ProcedureKind.Fragment?B.Remaining+" wounds / page "+(page+1):kind==ProcedureKind.Fracture?F.Stage.ToString():I.Stage.ToString())+" / "+Tool+(presentation.Participants>1?" / "+presentation.Participants+" surgeons":"");
             host.guideText.text="Hold right mouse: tools. Right-click outside: exit. "+(Tool==SurgeryTool.Suction?"Hold over each red pool.":Tool==SurgeryTool.Gel?"Coat the incision or hold over a bruise/extracted wound.":Tool==SurgeryTool.Suture?"Cross the wound three times, then release.":Tool==SurgeryTool.Scalpel?"Touch the gold dots while cutting.":kind==ProcedureKind.Fracture?"Grip a bone, align to the blue guide and release.":kind==ProcedureKind.InternalBleeding?"Grip a long edge and drag into the center.":"Pull a shard until loose, then release. PgUp/PgDn: pages.");
         }
         public void Finish(string reason){if(Ended)return;bool refused=presentation.Error!=null;log(reason);OnEnded();if(host!=null && ReferenceEquals(host.currentMinigame,this))host.EndMinigame();if(refused)Plugin.EntryNotice(source,limb,reason);}

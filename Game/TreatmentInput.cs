@@ -55,6 +55,20 @@ namespace CasualtiesSurgery.Game
             double radians=angle*Math.PI/180,cos=Math.Cos(radians),sin=Math.Sin(radians);
             lx=(float)((x-cx)*cos+(y-cy)*sin);ly=(float)(-(x-cx)*sin+(y-cy)*cos);
         }
+        public static string Resource(SurgeryCommand command,string woundField)
+        {
+            if(command.Action=="gesture.cancel")return null;
+            try
+            {
+                var payload=JObject.Parse(command.Payload);
+                string field=command.Action.StartsWith("bone.",StringComparison.Ordinal)?"bone":woundField;
+                var token=payload[field];
+                if(token?.Type==JTokenType.Integer && Number(token,out float value) && value>=0 && value<=255)
+                    return (field=="bone"?"bone:":"wound:")+(int)value;
+            }
+            catch(Newtonsoft.Json.JsonException) { }
+            return "*"; // Unknown/outer-incision commands cannot bypass a held wound.
+        }
         public static bool PoolHit(BloodPools pools,int slot,float x,float y,float cx,float cy)
         {
             if(slot<0 || slot>1 || pools.Remaining(slot)<=0)return false;

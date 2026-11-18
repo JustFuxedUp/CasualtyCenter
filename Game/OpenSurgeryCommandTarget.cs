@@ -9,8 +9,11 @@ namespace CasualtiesSurgery.Game
 {
     // Authoritative open-surgery endpoint; inner repair handlers live in the partial class.
     // Construct only after the host resolves a body-generation identity, never from payload.
-    internal sealed partial class OpenSurgeryCommandTarget : ISurgeryStateTarget,ISurgeryFeedbackTarget,ISurgeryLeaseTarget
+    internal sealed partial class OpenSurgeryCommandTarget : ISurgeryStateTarget,ISurgeryFeedbackTarget,ISurgeryLeaseTarget,ISurgeryResourceTarget
     {
+        public string CommandResource(SurgeryCommand command)=>TreatmentInput.Resource(command,"wound");
+        public int SharedPhase=>state is FractureState f?(int)f.Stage:(int)((InternalBleedingState)state).Stage;
+        public string HeldResource=>rotating>=0?"bone:"+rotating:gripping>=0?"wound:"+gripping:null;
         readonly Limb limb;
         readonly Body body;
         readonly object state;

@@ -6,8 +6,11 @@ using static CasualtiesSurgery.Game.TreatmentInput;
 
 namespace CasualtiesSurgery.Game
 {
-    internal sealed class FragmentCommandTarget : ISurgeryStateTarget,ISurgeryLeaseTarget,ISurgeryFeedbackTarget,ISurgeryViewSettings
+    internal sealed class FragmentCommandTarget : ISurgeryStateTarget,ISurgeryLeaseTarget,ISurgeryFeedbackTarget,ISurgeryViewSettings,ISurgeryResourceTarget
     {
+        public string CommandResource(SurgeryCommand command)=>TreatmentInput.Resource(command,"site");
+        public int SharedPhase=>0;
+        public string HeldResource=>pull!=null && pull.Active && gripping>=0?"wound:"+gripping:null;
         readonly Limb limb;
         readonly Body body;
         readonly FragmentBoard board;
@@ -127,10 +130,10 @@ namespace CasualtiesSurgery.Game
             if(gripping!=siteId || session==null || !pull.Active || (command.Action!="fragment.drag" && command.Action!="fragment.release"))return CommandStatus.Rejected;
             bool release=command.Action=="fragment.release";
             bool success=release?pull.End(px,py):pull.Move(px,py);
-            if(!success) {bool damaged=session.Slip();ResetInput();if(damaged)Feedback=new TreatmentFeedback(TreatmentRating.Mistake,target:siteId);return damaged?CommandStatus.Applied:CommandStatus.Rejected;}
+            if(!success) {bool damaged=fresh().Slip();ResetInput();if(damaged)Feedback=new TreatmentFeedback(TreatmentRating.Mistake,target:siteId);return damaged?CommandStatus.Applied:CommandStatus.Rejected;}
             if(!release)return CommandStatus.NoChange;
             int extractionQuality=pull.Quality;
-            bool extracted=actions.Extract(session,site,extractionQuality);ResetInput();
+            bool extracted=actions.Extract(fresh(),site,extractionQuality);ResetInput();
             if(extracted)Feedback=new TreatmentFeedback(TreatmentRating.Scored,extractionQuality,siteId);
             return extracted?CommandStatus.Applied:CommandStatus.Rejected;
         }

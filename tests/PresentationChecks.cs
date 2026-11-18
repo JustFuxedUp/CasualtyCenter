@@ -54,7 +54,7 @@ static class PresentationChecks
         var innerRouter=new SurgeryHostRouter(c=>c==actor?chestBody:null,()=>now);var innerPackets=new Queue<string>();
         var innerClient=new SurgeryClientSession(text=>{innerPackets.Enqueue(text);return true;},()=>now);var innerView=new SurgeryPresentation(innerClient,ProcedureKind.InternalBleeding,()=>now);
         innerView.Begin(1);innerClient.Receive(innerRouter.Handle(actor,innerPackets.Dequeue()));
-        innerView.Submit("gesture.cancel",new JObject());innerView.Tick();now+=.2;
+        innerView.Submit("wound.gel",new JObject {["wound"]=0,["x"]=0,["y"]=0,["seconds"]=.1});innerView.Tick();now+=.2;
         innerClient.Receive(innerRouter.Handle(actor,innerPackets.Dequeue()));innerView.Tick();
         var resend=JObject.Parse(innerPackets.Peek())["command"];
         check((long)resend["Sequence"]==1 && (long)resend["Revision"]>0,"Stale view intent retries with refreshed revision and unconsumed sequence");

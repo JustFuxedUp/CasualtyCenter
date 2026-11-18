@@ -9,3 +9,5 @@ Keep stubs narrow. A new stubbed field is not proof that the game has that field
 `SURGERY_AUDIO_TEST_DIR` optionally decodes supplied WAVs; those checks are not a listening test and the files are not required in Git. Counts differ when that variable is absent. Report the actual output, not a historical number.
 
 Do not build a parallel simulation of Unity to test a visual constant. For UI changes, build and provide a targeted real-game playtest. Do not rerun the suite repeatedly after an unchanged passing result.
+
+Keep test failures inside the runner: print the exception to stderr and exit nonzero. Do not let assertion exceptions escape Main and trigger a Windows crash popup on the user's desktop.

@@ -93,7 +93,7 @@ namespace CasualtiesSurgery.Procedures
         }
         CommandReceipt Result(CommandStatus status) => new CommandReceipt(status,Revision,nextSequence);
 
-        public CommandReceipt Execute(Guid authenticatedConnection, SurgeryCommand command, Func<SurgeryCommand,CommandStatus> apply,Func<TreatmentFeedback> feedback=null)
+        public CommandReceipt Execute(Guid authenticatedConnection, SurgeryCommand command, Func<SurgeryCommand,CommandStatus> apply,Func<TreatmentFeedback> feedback=null,Func<SurgeryCommand,bool> canRebase=null)
         {
             if (authenticatedConnection != connection) return Result(CommandStatus.Unauthorized);
             if (command == null || !command.Valid || apply == null) return Result(CommandStatus.Invalid);
@@ -105,7 +105,7 @@ namespace CasualtiesSurgery.Procedures
                     : Result(CommandStatus.Invalid);
             if (command.Sequence < nextSequence) return Result(CommandStatus.Expired);
             if (command.Sequence != nextSequence) return Result(CommandStatus.OutOfOrder);
-            if (command.Revision != Revision) return Result(CommandStatus.StaleRevision);
+            if (command.Revision != Revision && !(command.Revision<Revision && canRebase!=null && canRebase(command))) return Result(CommandStatus.StaleRevision);
             if (Revision == long.MaxValue-1) { faulted=true; return Result(CommandStatus.Faulted); }
             CommandStatus outcome;
             TreatmentFeedback presentation=null;
@@ -139,6 +139,11 @@ namespace CasualtiesSurgery.Procedures
             if (executing || faulted || Revision >= long.MaxValue-1) throw new InvalidOperationException("Journal cannot advance.");
             Revision++;
         }
+        public void SynchronizeRevision(long revision)
+        {
+            if(executing || faulted || revision<Revision || revision>=long.MaxValue)throw new InvalidOperationException("Invalid shared revision.");
+            Revision=revision;
+        }
         public void Invalidate() { faulted=true; }
     }
 
@@ -152,40 +157,43 @@ namespace CasualtiesSurgery.Procedures
         { Operation=operation; Connection=connection; ExpiresAt=expiresAt; }
     }
 
-    // Patient-wide exclusion protects the body-wide internal bleeding scalar. Release only
-    // removes access: clinical state, incision debt and wound timers are owned elsewhere.
+    // Independent limbs may proceed together. Internal bleeding conflicts with other
+    // operations on the patient; explicit joins share only the exact same episode.
     public sealed class PatientLeases
     {
         readonly Guid world;
-        readonly Dictionary<string,PatientLease> leases = new Dictionary<string,PatientLease>(StringComparer.Ordinal);
+        readonly Dictionary<Guid,PatientLease> leases=new Dictionary<Guid,PatientLease>();
         double lastTime;
-        public PatientLeases(Guid world) { if(world==Guid.Empty)throw new ArgumentException("Missing world epoch."); this.world=world; }
-        bool Time(double now) { if (double.IsNaN(now) || double.IsInfinity(now) || now < lastTime) return false; lastTime=now; return true; }
-        public PatientLease Acquire(OperationKey operation, Guid connection, double now, double lifetime)
+        public PatientLeases(Guid world) {if(world==Guid.Empty)throw new ArgumentException("Missing world epoch.");this.world=world;}
+        bool Time(double now) {if(double.IsNaN(now)||double.IsInfinity(now)||now<lastTime)return false;lastTime=now;return true;}
+        static bool Conflicts(OperationKey a,OperationKey b)=>a.Patient==b.Patient &&
+            (a.Limb==b.Limb || a.Procedure==ProcedureKind.InternalBleeding || b.Procedure==ProcedureKind.InternalBleeding);
+        public PatientLease Acquire(OperationKey operation,Guid connection,double now,double lifetime,bool shared=false)
         {
             if(operation==null || operation.World!=world || connection==Guid.Empty || !Time(now) || !(lifetime>0 && lifetime<=60))return null;
-            if(leases.TryGetValue(operation.Patient,out var current) && current.ExpiresAt>now)return null;
-            var lease=new PatientLease(operation,connection,now+lifetime); leases[operation.Patient]=lease; return lease;
+            var expired=new List<Guid>();
+            foreach(var pair in leases)
+            {
+                var current=pair.Value;
+                if(current.ExpiresAt<=now)expired.Add(pair.Key);
+                else if(Conflicts(operation,current.Operation) && !(shared && operation.Equals(current.Operation) && current.Connection!=connection))return null;
+            }
+            foreach(var token in expired)leases.Remove(token);
+            var lease=new PatientLease(operation,connection,now+lifetime);leases.Add(lease.Token,lease);return lease;
         }
-        public bool Validate(OperationKey operation, Guid connection, Guid token, double now) =>
-            operation!=null && operation.World==world && Time(now) && leases.TryGetValue(operation.Patient,out var lease) &&
-            lease.Operation.Equals(operation) && lease.Connection==connection && lease.Token==token && lease.ExpiresAt>now;
-        public bool Renew(OperationKey operation, Guid connection, Guid token, double now, double lifetime)
+        public bool Validate(OperationKey operation,Guid connection,Guid token,double now)=>operation!=null && operation.World==world && Time(now) &&
+            leases.TryGetValue(token,out var lease) && lease.Operation.Equals(operation) && lease.Connection==connection && lease.ExpiresAt>now;
+        public bool Renew(OperationKey operation,Guid connection,Guid token,double now,double lifetime)
+        {if(!(lifetime>0 && lifetime<=60)||!Validate(operation,connection,token,now))return false;leases[token].ExpiresAt=now+lifetime;return true;}
+        public bool Release(OperationKey operation,Guid connection,Guid token)
         {
-            if(!(lifetime>0 && lifetime<=60) || !Validate(operation,connection,token,now))return false;
-            leases[operation.Patient].ExpiresAt=now+lifetime; return true;
-        }
-        public bool Release(OperationKey operation, Guid connection, Guid token)
-        {
-            if(operation==null || !leases.TryGetValue(operation.Patient,out var lease) || !lease.Operation.Equals(operation) ||
-                lease.Connection!=connection || lease.Token!=token)return false;
-            return leases.Remove(operation.Patient);
+            if(operation==null || !leases.TryGetValue(token,out var lease) || !lease.Operation.Equals(operation) || lease.Connection!=connection)return false;
+            return leases.Remove(token);
         }
         public void Disconnect(Guid connection)
         {
-            var remove=new List<string>();
-            foreach(var pair in leases)if(pair.Value.Connection==connection)remove.Add(pair.Key);
-            foreach(var patient in remove)leases.Remove(patient);
+            var remove=new List<Guid>();foreach(var pair in leases)if(pair.Value.Connection==connection)remove.Add(pair.Key);
+            foreach(var token in remove)leases.Remove(token);
         }
     }
 }

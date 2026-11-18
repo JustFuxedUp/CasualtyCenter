@@ -41,6 +41,10 @@ namespace CasualtiesSurgery.Game
         public string Error { get; private set; }
         public long Sample { get; private set; }
         public float ViewScale { get; private set; }=.4f;
+        public int Participants {get;private set;}=1;
+        string[] busyResources=new string[0];
+        public bool ResourceBusy(string resource)
+        {foreach(var held in busyResources)if(resource=="*" || held=="*" || resource==held)return true;return false;}
         public double SnapshotAge=>Math.Max(0,clock()-sampledAt);
         public event Action<string,CommandReceipt> Result;
         public event Action InputReset;
@@ -55,6 +59,7 @@ namespace CasualtiesSurgery.Game
             try
             {
                 if(snapshot.Operation.Procedure!=Kind)throw new ArgumentException("Wrong procedure snapshot.");
+                if(snapshot.Participants<0 || snapshot.Participants>8 || snapshot.BusyResources.Length>8)throw new ArgumentException("Invalid participant snapshot.");
                 if(!(snapshot.ViewScale>=.3f && snapshot.ViewScale<=.8f))throw new ArgumentException("Invalid view geometry.");
                 var settings=new JsonSerializerSettings {MaxDepth=12};
                 if(Kind==ProcedureKind.Fracture)
@@ -63,7 +68,7 @@ namespace CasualtiesSurgery.Game
                 {var value=JsonConvert.DeserializeObject<InternalBleedingState>(snapshot.State,settings);if(!value.Valid())throw new ArgumentException("Invalid internal state.");Internal=value;}
                 else
                 {var value=JsonConvert.DeserializeObject<FragmentBoard>(snapshot.State,settings);value.Validate();Fragments=value;}
-                sampledAt=clock();Sample=snapshot.Sample;ViewScale=snapshot.ViewScale;
+                sampledAt=clock();Sample=snapshot.Sample;ViewScale=snapshot.ViewScale;Participants=Math.Max(1,snapshot.Participants);busyResources=(string[])snapshot.BusyResources.Clone();
             }
             catch(Exception e) when(e is JsonException || e is ArgumentException || e is NullReferenceException)
             {Failed("Invalid surgery snapshot; treatment stopped.");client.Release();}

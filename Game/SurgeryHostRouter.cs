@@ -12,7 +12,8 @@ namespace CasualtiesSurgery.Game
     // is deliberately not inferred from a client-supplied body id; it needs a consent policy.
     internal sealed class SurgeryHostRouter
     {
-        sealed class Registration { public Body Body;public Limb Limb;public ProcedureKind Kind;public ISurgeryStateTarget Target;public PatientLease Lease;public Func<bool> BoundAccess; }
+        sealed class Participant {public PatientLease Lease;public Func<bool> BoundAccess;}
+        sealed class Registration {public Body Body;public Limb Limb;public ProcedureKind Kind;public ISurgeryStateTarget Target;public readonly Dictionary<Guid,Participant> Members=new Dictionary<Guid,Participant>();}
         readonly Func<Guid,Body> resolve;
         readonly Func<string,Body> inspectPatient;
         readonly SurgeryTreatmentAccess permission;
@@ -26,7 +27,17 @@ namespace CasualtiesSurgery.Game
         readonly float recovery,reduction,scale;
         public SurgeryHostRouter(Func<Guid,Body> authenticatedBody,Func<double> clock,float recovery=5,float reduction=1,float scale=.4f,Func<string,Body> inspectPatient=null,SurgeryTreatmentAccess permission=null)
         { resolve=authenticatedBody ?? throw new ArgumentNullException(nameof(authenticatedBody));this.inspectPatient=inspectPatient;this.permission=permission??new SurgeryTreatmentAccess(resolve,null,null,null,clock);dispatcher=new SurgeryDispatcher(world,clock);this.recovery=recovery;this.reduction=reduction;this.scale=scale; }
-        public void Tick() { dispatcher.Tick();foreach(var r in registrations)if(r.Lease!=null && !dispatcher.HasLease(r.Lease)){permission.End(r.Lease.Connection,r.Body);r.Lease=null;r.BoundAccess=null;} }
+        public void Tick()
+        {
+            dispatcher.Tick();
+            foreach(var r in registrations)
+                foreach(var pair in new List<KeyValuePair<Guid,Participant>>(r.Members))
+                    if(!dispatcher.HasLease(pair.Value.Lease))
+                    {
+                        r.Members.Remove(pair.Key);
+                        if(!registrations.Exists(other=>ReferenceEquals(other.Body,r.Body) && other.Members.ContainsKey(pair.Key)))permission.End(pair.Key,r.Body);
+                    }
+        }
         public void Disconnect(Guid connection) { permission.Disconnect(connection);dispatcher.Disconnect(connection);Tick(); }
         // Forget transient network registrations only; save-backed limb stores stay intact.
         public void ForgetPatient(Body patient)
@@ -54,15 +65,20 @@ namespace CasualtiesSurgery.Game
         {
             var registration=registrations.Find(r=>ReferenceEquals(r.Body,body) && ReferenceEquals(r.Limb,limb) && r.Kind==kind);
             if(registration!=null && (registration.Target is FragmentCommandTarget fragment?fragment.Current:((OpenSurgeryCommandTarget)registration.Target).Current))return registration;
-            if(registration!=null) {if(registration.Lease!=null)permission.End(registration.Lease.Connection,registration.Body);dispatcher.Remove(registration.Target.Key);registrations.Remove(registration);}
+            if(registration!=null)
+            {
+                dispatcher.Remove(registration.Target.Key);registrations.Remove(registration);
+                foreach(var participant in registration.Members.Keys)
+                    if(!registrations.Exists(other=>ReferenceEquals(other.Body,body) && other.Members.ContainsKey(participant)))permission.End(participant,body);
+            }
             if(registrations.Count>=256)return null;
             if(!identities.TryGetValue(body,out string patient)) {patient=Guid.NewGuid().ToString("N");identities.Add(body,patient);}
             var key=new OperationKey(world,Guid.NewGuid(),patient,index,kind);
             registration=new Registration {Body=body,Limb=limb,Kind=kind};
             var captured=registration;
-            Func<Guid,bool> access=c=>captured.Lease!=null?captured.Lease.Connection==c && captured.BoundAccess():permission.Check(c,body)==null;
-            ISurgeryStateTarget target=kind==ProcedureKind.Fragment?(ISurgeryStateTarget)new FragmentCommandTarget(key,limb,access,recovery,reduction,scale):new OpenSurgeryCommandTarget(key,limb,access);
-            registration.Target=target;registrations.Add(registration);dispatcher.Register(target);return registration;
+            Func<Guid,bool> access=c=>captured.Members.TryGetValue(c,out var member)?member.BoundAccess():permission.Check(c,body)==null;
+            ISurgeryStateTarget MakeTarget()=>kind==ProcedureKind.Fragment?(ISurgeryStateTarget)new FragmentCommandTarget(key,limb,access,recovery,reduction,scale):new OpenSurgeryCommandTarget(key,limb,access);
+            registration.Target=MakeTarget();registrations.Add(registration);dispatcher.Register(registration.Target,c=>MakeTarget());return registration;
         }
         public string Handle(Guid connection,string text)
         {
@@ -130,7 +146,7 @@ namespace CasualtiesSurgery.Game
                 if(registration==null)return Error(id,"capacity");
                 var lease=dispatcher.Acquire(registration.Target.Key,connection);
                 if(lease==null)return Error(id,"busy");
-                registration.BoundAccess=permission.Bind(connection,body);registration.Lease=lease;
+                registration.Members.Add(connection,new Participant {BoundAccess=permission.Bind(connection,body),Lease=lease});
                 opened.Add(cacheKey,new OpenRequest {Text=text,Body=body,Lease=lease});openOrder.Enqueue(cacheKey);
                 if(openOrder.Count>256)opened.Remove(openOrder.Dequeue());
                 dispatcher.Tick();
