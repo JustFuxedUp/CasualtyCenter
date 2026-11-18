@@ -6,6 +6,8 @@ Read AGENTS.md and STATUS first for development, then choose one relevant docume
 
 - [STATUS](STATUS.md): exact pending work, installed versus built version, evidence and known issues.
 - [PROJECT](PROJECT.md): gameplay contract, balance defaults, accepted future direction.
+- [CODE-STYLE](CODE-STYLE.md): C# readability, explanatory comments, documentation pointers and bounded adoption.
+- [LUNA-READABILITY-HANDOFF](LUNA-READABILITY-HANDOFF.md): ready-to-use brief for a small behavior-preserving readability pass.
 - [ARCHITECTURE](ARCHITECTURE.md): code ownership, native findings, persistence and transaction boundaries.
 - [MULTIPLAYER](MULTIPLAYER.md): implemented authority/transport/view contract, command payloads and remaining host/client acceptance work.
 - [TEST-REMOTE-VISUALS](TEST-REMOTE-VISUALS.md): unreleased release/wheel ordering and tinted remote hand/effect checks.

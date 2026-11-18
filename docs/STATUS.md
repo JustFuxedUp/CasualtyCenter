@@ -2,6 +2,10 @@
 
 Updated: 2026-11-18. Verify Git/process/file state before acting.
 
+## Readability guidance added (2026-11-18)
+
+Added [CODE-STYLE](CODE-STYLE.md) and [LUNA-READABILITY-HANDOFF](LUNA-READABILITY-HANDOFF.md), linked from AGENTS and INDEX. These define bounded formatting/comment work, explanations of non-obvious interactions, verified documentation pointers and escalation boundaries. No Luna agent was launched and no source formatting was performed. Documentation-only checks: local links/headings and diff validation; no build or test rerun needed. Source/build/installed/package state from the gameplay handoff below is unchanged.
+
 ## Unreleased release-order fix and remote surgeon visuals (2026-11-18)
 
 User's 0.16.0 two-instance report: contested fragment/bone ownership, first-served sutures, gel synchronization, simultaneous operations across limbs and shared operations behaved as expected. One operation per specific limb remained enforced. Consent boundaries were NOT exercised and remain pending; the separate heal-command bug was observed but intentionally left outside this work. The client still reset extracted fragments when the tool wheel opened immediately after release.

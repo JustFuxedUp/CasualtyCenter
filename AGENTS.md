@@ -15,6 +15,10 @@ User instructions take precedence over these repository defaults. Preserve unrel
 - Documentation-only changes need links/facts/diff checks, not a game build. Cosmetic changes normally need a build and a short playtest checklist. State, healing, infection and save changes need meaningful rule/adapter regression tests plus a build.
 - Run the appropriate checks once after the final relevant edit. Repeat only for a new change, failure or unresolved concern. Do not add tests that merely restate constants or duplicate implementation.
 
+## Code readability
+
+Follow [CODE-STYLE](docs/CODE-STYLE.md) for new or touched code: readable control flow, comments explaining non-obvious requirements, and narrow links to existing documentation. Adopt it within the requested scope; do not turn a feature/fix into a repository-wide formatting pass. [LUNA-READABILITY-HANDOFF](docs/LUNA-READABILITY-HANDOFF.md) provides a bounded optional readability task, not automatic delegation.
+
 ## Product invariants
 
 - Native health-dummy entry and native Minigame host; no return to an F8/Unity debug window.
