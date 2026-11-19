@@ -59,7 +59,13 @@ namespace CasualtiesSurgery.Game
                         var a=new Vector2(s.Trail[i*2],s.Trail[i*2+1]);var b=new Vector2(s.Trail[i*2+2],s.Trail[i*2+3]);var delta=b-a;
                         rect.anchoredPosition=(a+b)*.5f;rect.sizeDelta=new Vector2(delta.magnitude,s.Tool==1?2:3);rect.localEulerAngles=new Vector3(0,0,Mathf.Atan2(delta.y,delta.x)*Mathf.Rad2Deg);
                     }
-                    else {rect.anchoredPosition=s.Tool==4?new Vector2(s.X,s.Y):new Vector2(s.Trail[i*2],s.Trail[i*2+1]);rect.sizeDelta=Vector2.one*(s.Tool==4?32:34);rect.localEulerAngles=Vector3.zero;}
+                    else {rect.anchoredPosition=s.Tool==4?new Vector2(s.X,s.Y):new Vector2(s.Trail[i*2],s.Trail[i*2+1]);rect.sizeDelta=Vector2.one*(s.Tool==4?32:34);
+                        // Keep existing splashes at the same angle when their snapshot refreshes.
+                        Vector2 point = rect.anchoredPosition;
+                        float angle = s.Tool == 3
+                            ? Mathf.Repeat(Mathf.Sin(point.x * 12.9898f + point.y * 78.233f) * 43758.5453f, 1f) * 360f
+                            : 0f;
+                        rect.localEulerAngles = new Vector3(0, 0, angle);}
                 }
                 peer.Hand.SetAsLastSibling();
             }

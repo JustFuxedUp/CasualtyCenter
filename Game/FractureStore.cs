@@ -36,10 +36,10 @@ namespace CasualtiesSurgery.Game
         {
             string basic=OperationSession.ClinicalIneligible(body,limb,false);if(basic!=null)return basic;
             if(float.IsNaN(limb.boneHealTimer)||float.IsInfinity(limb.boneHealTimer)||float.IsNaN(limb.pain)||float.IsInfinity(limb.pain)||float.IsNaN(limb.muscleHealth)||float.IsInfinity(limb.muscleHealth))return "Invalid fracture values.";
-            var state=Get(limb);
-            if(state.Started && state.Stage!=FractureStage.Complete)return null;
+            states.TryGetValue(limb, out var state);
+            if(state != null && state.Started && state.Stage!=FractureStage.Complete)return null;
             if(!limb.broken || limb.boneHealTimer<=0)return "No fracture to align.";
-            if(state.Stage==FractureStage.Complete)return "Fracture already treated; allow natural healing.";
+            if(state?.Stage==FractureStage.Complete)return "Fracture already treated; allow natural healing.";
             if(limb.skinHealth<=0)return "No viable skin for an incision.";
             return null;
         }

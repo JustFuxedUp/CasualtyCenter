@@ -67,11 +67,17 @@ namespace CasualtiesSurgery
         {
             if(!AuthorityViews || limb==null)return fallback;
             if(CUCoreLib.Networking.MultiplayerApi.IsRunning)fallback=false;
-            if(limb.body!=instance.overviewBody || instance.patientOverview==null || Time.unscaledTimeAsDouble-instance.overviewReceivedAt>6)return fallback;
-            int index=System.Array.IndexOf(limb.body.limbs,limb);
-            var token=index>=0 && index<instance.patientOverview.Count?instance.patientOverview[index]?[name]:null;
+            var token = instance.OverviewFor(limb)?[name];
             return token?.Type==Newtonsoft.Json.Linq.JTokenType.Boolean?(bool)token:fallback;
         }
+        Newtonsoft.Json.Linq.JToken OverviewFor(Limb limb)
+        {
+            if (limb?.body == null || limb.body != overviewBody || patientOverview == null ||
+                Time.unscaledTimeAsDouble - overviewReceivedAt > 6) return null;
+            int index = System.Array.IndexOf(limb.body.limbs, limb);
+            return index >= 0 && index < patientOverview.Count ? patientOverview[index] : null;
+        }
+
         internal static void InspectPatient(Body body)
         {
             if(!AuthorityViews || body==null || PlayerCamera.main==null)return;
@@ -97,9 +103,15 @@ namespace CasualtiesSurgery
             string reason=OperationSession.ClinicalIneligible(patient,limb,false);if(reason!=null)return reason;
             if(MinigameBase.main==null || MinigameBase.main.currentMinigame!=null)return "Finish the current minigame first.";
             if(CUCoreLib.Networking.MultiplayerApi.IsRunning && !(instance.network?.Available ?? false))return "Surgery transport is not ready; check host health-sync settings.";
-            // The host decides clinical eligibility and pending-incision resume. Client
-            // stores are not authoritative, especially after reconnect or native healing.
-            return null;
+            if (!CUCoreLib.Networking.MultiplayerApi.IsRunning)
+                return SurgeryHostRouter.ClinicalEntryReason(patient, limb, kind);
+
+            // The overview reports clinical eligibility without opening a session or asking for consent.
+            var eligibility = instance.OverviewFor(limb)?["eligibility"] as Newtonsoft.Json.Linq.JObject;
+            var entry = eligibility?[kind.ToString()];
+            if (entry?.Type == Newtonsoft.Json.Linq.JTokenType.Null) return null;
+            if (entry?.Type == Newtonsoft.Json.Linq.JTokenType.String) return (string)entry;
+            return "Waiting for surgery options from the host.";
         }
         Harmony harmony;
         int releaseFrame = -1;

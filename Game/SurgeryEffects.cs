@@ -74,7 +74,15 @@ namespace CasualtiesSurgery.Game
             if(tool==SurgeryTool.Gel)
             {
                 dispensed=GelRules.FlowMlPerSecond*dt;GelMl+=dispensed;gelTick+=dt;
-                if(gelTick>=.04f){gelTick=0;float size=Random.Range(GelSquareMin,GelSquareMax);var tint=SurgeryArt.Gel;tint.a=.32f;MarkAt(p+Random.insideUnitCircle*14,Vector2.one*size,tint,.8f,SurgeryArt.Get("gel1"));}
+                if (gelTick >= .04f)
+                {
+                    gelTick = 0;
+                    float size = Random.Range(GelSquareMin, GelSquareMax);
+                    var tint = SurgeryArt.Gel;
+                    tint.a = .32f;
+                    var mark = MarkAt(p + Random.insideUnitCircle * 14, Vector2.one * size, tint, .8f, SurgeryArt.Get("gel1"));
+                    mark.localEulerAngles = new Vector3(0, 0, Random.Range(0f, 360f));
+                }
             }
             previous=p;previousTool=tool;tracing=true;UpdateCounter();return dispensed;
         }

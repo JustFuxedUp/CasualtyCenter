@@ -35,8 +35,14 @@ static class RepairCommandChecks
         JObject pool=new JObject { ["wound"]=index,["slot"]=0,["x"]=wound.X,["y"]=wound.Y,["seconds"]=.25f };
         check(Send("pool.suction",pool).Status==CommandStatus.Rejected,"Suction cannot invent elapsed contact time");
         now+=.25;
+        double poolAngle = (wound.Pools.FirstAngle ?? 0) * Math.PI / 180;
+        pool["x"] = wound.X + 75 * Math.Cos(poolAngle);
+        pool["y"] = wound.Y + 75 * Math.Sin(poolAngle);
+        check(Send("pool.suction",pool).Status == CommandStatus.Rejected, "Host rejects suction outside the enlarged pool");
+        pool["x"] = wound.X + 55 * Math.Cos(poolAngle);
+        pool["y"] = wound.Y + 55 * Math.Sin(poolAngle);
         var cleared=Send("pool.suction",pool);
-        check(cleared.Status==CommandStatus.Applied && cleared.Feedback?.Rating==TreatmentRating.Good && cleared.Feedback.Slot==0 && !wound.Pools.Blocking,"Host-timed suction clears a laceration spill with slot-specific Good result");
+        check(cleared.Status==CommandStatus.Applied && cleared.Feedback?.Rating==TreatmentRating.Good && cleared.Feedback.Slot==0 && !wound.Pools.Blocking,"Host-timed suction works at the enlarged rotated pool edge and reports its slot");
         float muscle=limb.muscleHealth,bleeding=body.internalBleeding;
         Send("laceration.grip",Point(32,0));
         check(Send("laceration.drag",Point(100,0)).Status==CommandStatus.Applied && limb.muscleHealth==muscle-1 && body.internalBleeding>bleeding,"Remote overpull applies muscle damage and minor internal bleeding");

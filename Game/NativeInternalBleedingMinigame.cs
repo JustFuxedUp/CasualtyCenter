@@ -25,7 +25,6 @@ namespace CasualtiesSurgery.Game
         readonly SutureStroke suture = new SutureStroke(2);
         readonly ScalpelTrace scalpel = new ScalpelTrace();
         readonly Image[] lesions = new Image[InternalBleedingState.MaxWounds];
-        readonly TextMeshProUGUI[] woundLabels = new TextMeshProUGUI[InternalBleedingState.MaxWounds];
         readonly BruiseArt[] bruiseArt = new BruiseArt[InternalBleedingState.MaxWounds];
         readonly LacerationArt[] lacerationArt = new LacerationArt[InternalBleedingState.MaxWounds];
         readonly BloodPoolVisual[] pools = new BloodPoolVisual[InternalBleedingState.MaxWounds];
@@ -120,8 +119,6 @@ namespace CasualtiesSurgery.Game
                     else bruiseArt[i] = new BruiseArt(lesions[i], state.Wounds[i].Phase);
                     actions.Prepare(state.Wounds[i].Pools);
                     pools[i] = new BloodPoolVisual(state.Wounds[i].Pools, field, position, host, actions);
-                    woundLabels[i] = Label(field, position + Vector2.down * 80, new Vector2(210, 32), 18);
-                    woundLabels[i].text = laceration ? "Laceration" : "Bruise";
                 }
             }
             else
@@ -239,13 +236,6 @@ namespace CasualtiesSurgery.Game
                         actions.Observe(wound.Pools, true);
                     actions.Prepare(wound.Pools);
                     pools[i].Refresh();
-                    bool laceration = state.Wounds[i].Laceration;
-                    bool repaired = wound.Phase == InternalWoundPhase.Repaired;
-                    if (laceration)
-                    {
-                        woundLabels[i].text = repaired ? "Stitched" : wound.Phase == InternalWoundPhase.Pinched
-                            ? "Suture · " + Mathf.CeilToInt(wound.Seconds) + "s" : "Laceration";
-                    }
                 }
                 return;
             }

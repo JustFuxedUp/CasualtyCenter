@@ -127,8 +127,16 @@ namespace CasualtiesSurgery.Game
         {
             var go = new GameObject(caption, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(panel, false); Place((RectTransform)go.transform, position, size);
-            go.GetComponent<Image>().color = new Color(0.10f,0.19f,0.36f);
+            go.GetComponent<Image>().color = Color.white;
             var button = go.GetComponent<Button>(); button.targetGraphic = go.GetComponent<Image>();
+            var colors = button.colors;
+            colors.normalColor = new Color(.12f, .26f, .46f);
+            colors.highlightedColor = new Color(.24f, .44f, .69f);
+            colors.selectedColor = colors.normalColor;
+            colors.pressedColor = new Color(.16f, .34f, .57f);
+            colors.disabledColor = new Color(.12f, .14f, .18f);
+            colors.colorMultiplier = 1f;
+            button.colors = colors;
             button.onClick.AddListener(action);
             var text = Text("Label", go.transform, Vector2.zero, size, 14);
             text.text = caption;
@@ -149,11 +157,19 @@ namespace CasualtiesSurgery.Game
         static bool HasOpenIncision(Limb selected) => Plugin.Marker(selected,"fracture",FractureStore.HasOpen(selected)) || Plugin.Marker(selected,"internal",InternalBleedingStore.HasOpen(selected));
         bool ShowsInternal()=>InternalBleedingStore.ShowsProcedure(patient,limb) || Plugin.Marker(limb,"internal",false);
 
+        static void SetAvailability(Button button, string refusal)
+        {
+            bool available = refusal == null;
+            button.interactable = available;
+            var label = button.GetComponentInChildren<TextMeshProUGUI>(true);
+            label.color = available ? Color.white : new Color(.59f, .63f, .70f);
+        }
+
         void Refresh()
         {
             if(proceed!=null)
             {
-                title.text="SURGERY APPROVED";procedure.interactable=true;
+                title.text="SURGERY APPROVED";SetAvailability(procedure, null);
                 procedure.GetComponentInChildren<TextMeshProUGUI>().text="Proceed with surgery";
                 fracture.gameObject.SetActive(false);internalBleeding.gameObject.SetActive(false);
                 reason.rectTransform.anchoredPosition=new Vector2(12,-100);reason.text=entryNotice;
@@ -162,9 +178,9 @@ namespace CasualtiesSurgery.Game
             fracture.gameObject.SetActive(true);procedure.GetComponentInChildren<TextMeshProUGUI>().text="Extract fragment + suture";
             string unavailable = Plugin.EntryReason(patient, limb,ProcedureKind.Fragment);
             title.text = "SURGERY / " + (limb != null ? limb.fullName : "No limb")+(HasOpenIncision(limb)?" / OPEN":"");
-            procedure.interactable = unavailable == null;
+            SetAvailability(procedure, unavailable);
             string fractureReason=Plugin.EntryReason(patient,limb,ProcedureKind.Fracture);
-            fracture.interactable=fractureReason==null;
+            SetAvailability(fracture, fractureReason);
             fracture.GetComponentInChildren<TextMeshProUGUI>().text=Plugin.Marker(limb,"fracture",FractureStore.HasOpen(limb))?"Resume open surgery":"Open / align fracture / close";
             bool showInternal = ShowsInternal();
             internalBleeding.gameObject.SetActive(showInternal);
@@ -172,11 +188,11 @@ namespace CasualtiesSurgery.Game
             ((RectTransform)back.transform).anchoredPosition = new Vector2(12, (showInternal ? -224 : -186)-(entryNotice!=null?30:0));
             reason.rectTransform.sizeDelta=new Vector2(256,entryNotice!=null?70:42);
             string internalReason = showInternal ? Plugin.EntryReason(patient, limb,ProcedureKind.InternalBleeding) : null;
-            internalBleeding.interactable = internalReason == null;
+            SetAvailability(internalBleeding, internalReason);
             internalBleeding.GetComponentInChildren<TextMeshProUGUI>(true).text = Plugin.Marker(limb,"internal",InternalBleedingStore.HasOpen(limb))
                 ? "Resume internal bleeding surgery" : "Open / treat internal bleeding";
             reason.text = unavailable == null || fractureReason == null || (showInternal && internalReason == null)
-                ? "Free test tools. World stays live." : showInternal ? internalReason : fractureReason;
+                ? "Select an available operation." : showInternal ? internalReason : fractureReason;
             if(entryNotice!=null)reason.text=entryNotice;
         }
         internal void ShowProceed(WoundView source,Limb selected,Action action)

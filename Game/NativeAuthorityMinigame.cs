@@ -213,7 +213,8 @@ namespace CasualtiesSurgery.Game
                     part.Laceration.Setup(image, w.Phase);
                 }
                 else part.Bruise = new BruiseArt(image, w.Phase);
-                part.Pools=new BloodPoolVisual(w.Pools,field,pos,host,null);part.Label=Label(field,pos+Vector2.down*80,new Vector2(210,32),18);parts.Add(part);
+                part.Pools = new BloodPoolVisual(w.Pools, field, pos, host, null);
+                parts.Add(part);
             }
         }
         void BuildFragments()
@@ -278,9 +279,8 @@ namespace CasualtiesSurgery.Game
                 }
                 else
                 {
-                    var w=I.Wounds[part.Id];bool repaired=w.Phase==InternalWoundPhase.Repaired;
+                    var w = I.Wounds[part.Id];
                     part.Pools.Bind(w.Pools);part.Pools.Refresh();
-                    part.Label.text=presentation.ResourceBusy("wound:"+part.Id)?"In use by surgeon":repaired?(w.Laceration?"Stitched":"Healed"):w.Phase==InternalWoundPhase.Pinched?"Suture · "+Mathf.CeilToInt(Mathf.Max(0,w.Seconds-(float)presentation.SnapshotAge))+"s":w.Laceration?"Laceration":"Bruise";
                 }
             }
             if(kind==ProcedureKind.Fragment && parts.All(p=>!p.Wound.gameObject.activeSelf) && B.Remaining>0)BuildStage();

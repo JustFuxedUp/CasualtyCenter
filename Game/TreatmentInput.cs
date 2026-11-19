@@ -69,11 +69,14 @@ namespace CasualtiesSurgery.Game
             catch(Newtonsoft.Json.JsonException) { }
             return "*"; // Unknown/outer-incision commands cannot bypass a held wound.
         }
+        // Keep the rotated contact bounds identical to the pool artwork.
+        public static float PoolSize(int slot) => slot == 0 ? 128f : 98f;
+
         public static bool PoolHit(BloodPools pools,int slot,float x,float y,float cx,float cy)
         {
             if(slot<0 || slot>1 || pools.Remaining(slot)<=0)return false;
             Local(x,y,cx+(slot==0?0:37),cy+(slot==0?0:-25),(slot==0?pools.FirstAngle:pools.SecondAngle)??0,out float lx,out float ly);
-            float half=slot==0?34:26; // Current pool artwork is 68/52 board units.
+            float half = PoolSize(slot) / 2;
             return Math.Abs(lx)<=half && Math.Abs(ly)<=half;
         }
     }

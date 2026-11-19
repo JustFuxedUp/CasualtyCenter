@@ -137,9 +137,21 @@ namespace CasualtiesSurgery.Game
                     if(!(reply["overview"] is JArray overview) || overview.Count>256)throw new JsonException("Invalid patient overview.");
                     if(inspectedPatient!=null && (reply["patient"]?.Type!=JTokenType.String || (string)reply["patient"]!=inspectedPatient))throw new JsonException("Wrong overview patient.");
                     if(inspectedPatient==null && reply["patient"]!=null && reply["patient"].Type!=JTokenType.Null)throw new JsonException("Unexpected overview patient.");
-                    foreach(var limb in overview)
-                        if(!(limb is JObject) || limb["fracture"]?.Type!=JTokenType.Boolean || limb["internal"]?.Type!=JTokenType.Boolean || limb["suture"]?.Type!=JTokenType.Boolean)
+                    foreach (var limb in overview)
+                    {
+                        if (!(limb is JObject) || limb["fracture"]?.Type != JTokenType.Boolean ||
+                            limb["internal"]?.Type != JTokenType.Boolean || limb["suture"]?.Type != JTokenType.Boolean)
                             throw new JsonException("Invalid overview markers.");
+                        if (limb["eligibility"] == null) continue; // Older peers still provide markers.
+                        if (!(limb["eligibility"] is JObject options)) throw new JsonException("Invalid surgery options.");
+                        foreach (ProcedureKind procedure in Enum.GetValues(typeof(ProcedureKind)))
+                        {
+                            var reason = options[procedure.ToString()];
+                            if (reason?.Type != JTokenType.Null &&
+                                (reason?.Type != JTokenType.String || ((string)reason).Length > 160))
+                                throw new JsonException("Invalid surgery option.");
+                        }
+                    }
                     OverviewReceived?.Invoke((JArray)overview.DeepClone());
                 }
                 if(next!=null)SnapshotChanged?.Invoke(next);

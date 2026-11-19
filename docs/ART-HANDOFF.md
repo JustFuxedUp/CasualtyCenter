@@ -1,5 +1,11 @@
 # Art handoff
 
+## Follow-up artwork and menu pass
+
+Bruise edges feather toward transparency at sprite load. Gel casts rotate through the full angle range, and remote splashes retain a steady angle across refreshes. Blood pools now cover 128 or 98 board units per side, with the same bounds used for suction. The text beneath internal wounds is removed. The incision guide and treatment ratings remain visible.
+
+For an in-game check, inspect a healthy limb, a fragment wound, a fracture, and a chest with internal bleeding. The surgery menu should highlight each clinically available procedure and dim the others. In Together, wait for the host's overview before testing the choices. Check suction near the new edges of both rotated pool sizes and verify the bruise center remains readable against the open field.
+
 ## 0.16.2 solo feedback
 
 The shard faces the opposite direction from 0.16.1, with clipping starting at the center seam of the wound. The grip anchor follows the shifted shard. Shard pickups allow more vertical and along-shard reach. Lacerations accept pickups farther from either horizontal side.

@@ -31,11 +31,13 @@ namespace CasualtiesSurgery.Game
                     var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false) {
                         name = name, filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp
                     };
-                    if (!ImageConversion.LoadImage(texture, buffer.ToArray(), true))
+                    bool softenBruise = name == "bruise";
+                    if (!ImageConversion.LoadImage(texture, buffer.ToArray(), !softenBruise))
                     {
                         UnityEngine.Object.Destroy(texture);
                         throw new InvalidOperationException("Invalid surgery artwork: " + name);
                     }
+                    if (softenBruise) SoftenBruise(texture);
                     var bounds = new Rect(0, 0, texture.width, texture.height);
                     // Trim wound and shard padding to keep the visible art near the existing contact geometry.
                     if (name == "smallwound") bounds = new Rect(23, 4, 17, 149);
@@ -48,6 +50,25 @@ namespace CasualtiesSurgery.Game
                     return sprite;
                 }
             }
+        }
+
+        static void SoftenBruise(Texture2D texture)
+        {
+            // Feather the supplied silhouette in alpha and preserve the grayscale source art.
+            var pixels = texture.GetPixels32();
+            var center = new Vector2(texture.width * .44f, texture.height * .50f);
+            var radius = new Vector2(texture.width * .39f, texture.height * .37f);
+            for (int y = 0; y < texture.height; y++)
+                for (int x = 0; x < texture.width; x++)
+                {
+                    int i = y * texture.width + x;
+                    if (pixels[i].a == 0) continue;
+                    var delta = new Vector2((x - center.x) / radius.x, (y - center.y) / radius.y);
+                    float feather = Mathf.SmoothStep(1f, .20f, Mathf.InverseLerp(.5f, 1.1f, delta.magnitude));
+                    pixels[i].a = (byte)Mathf.RoundToInt(pixels[i].a * feather);
+                }
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
         }
 
         public static Image Bone(RectTransform contact, bool upper)

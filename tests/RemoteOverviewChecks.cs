@@ -21,6 +21,10 @@ static class RemoteOverviewChecks
         float skin=limb.skinHealth;
         reader.Inspect("7");
         check((bool)markers[0]["fracture"] && !reader.Active && surgeon.Active && limb.skinHealth==skin,"Remote overview reports host-owned incision without a lease or mutation");
+        var choices = markers[0]["eligibility"];
+        check(choices["Fracture"].Type == JTokenType.Null &&
+            choices["Fragment"].Type == JTokenType.String && choices["InternalBleeding"].Type == JTokenType.String,
+            "Host overview distinguishes available fracture from unavailable procedures on the same limb");
         reader.Inspect();check(!(bool)markers[0]["fracture"],"Self overview stays bound to authenticated viewer rather than last remote patient");
         patient.transform.position=new UnityEngine.Vector3 {x=6};reader.Inspect("7");
         check(failure=="patient-out-of-range","Host rejects distant remote inspection");
@@ -41,6 +45,9 @@ static class RemoteOverviewChecks
         check(!delayed.Busy && updates==1,"Mismatched echoed patient is rejected");
         delayed.Inspect("7");wrong=JObject.Parse(router.Handle(actor,wire));wrong["overview"][0]["fracture"]="true";delayed.Receive(wrong.ToString());
         check(!delayed.Busy && updates==1,"Malformed marker booleans never reach presentation");
+        delayed.Inspect("7");wrong=JObject.Parse(router.Handle(actor,wire));
+        wrong["overview"][0]["eligibility"]["Fragment"]=true;delayed.Receive(wrong.ToString());
+        check(!delayed.Busy && updates==1,"Invalid eligibility values never reach the surgery menu");
         surgeon.Release();reader.Inspect("7");check((bool)markers[0]["fracture"],"Remote markers survive operator interruption");
     }
 }

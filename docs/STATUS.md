@@ -2,6 +2,10 @@
 
 Updated: 2026-11-18. Verify Git/process/file state before acting.
 
+## Unreleased menu and wound artwork follow-up
+
+The authority surgery menu uses per-procedure clinical eligibility from the read-only host overview. Buttons distinguish enabled, hovered, and disabled states. Consent, current access and operation conflicts remain checked on entry. Bruise edges feather, gel splashes rotate, and blood pools now render and accept suction at 128 or 98 units per side. Text beneath internal wounds is removed. Live appearance and menu behavior need a retest. The installed tester build remains the delivered 0.16.2 below. See [ART-HANDOFF](ART-HANDOFF.md#follow-up-artwork-and-menu-pass).
+
 ## 0.16.2 solo feedback patch
 
 Reversed the shard and moved its mask and pickup anchor to the center seam. Widened shard and laceration pickups in both surgery views, including host validation. Enlarged gel particles and bruises, lowered gel and blood opacity, and darkened the open surgery field. Healed bruises fade, including the last bruise before closure. The internal bleeding usage counter is hidden. See [test checklist](TEST-0.16.2.md).

@@ -112,8 +112,19 @@ namespace CasualtiesSurgery.Game
                         return Error(id,"patient-out-of-range");
                 }
                 var limbs=new JArray();
-                foreach(var limb in patient.limbs)
-                    limbs.Add(new JObject { ["fracture"]=FractureStore.HasOpen(limb),["internal"]=InternalBleedingStore.HasOpen(limb),["suture"]=FragmentBoardStore.HasPendingSuture(limb) });
+                foreach (var limb in patient.limbs)
+                    limbs.Add(new JObject
+                    {
+                        ["fracture"] = FractureStore.HasOpen(limb),
+                        ["internal"] = InternalBleedingStore.HasOpen(limb),
+                        ["suture"] = FragmentBoardStore.HasPendingSuture(limb),
+                        ["eligibility"] = new JObject
+                        {
+                            ["Fragment"] = ClinicalEntryReason(patient, limb, ProcedureKind.Fragment),
+                            ["Fracture"] = ClinicalEntryReason(patient, limb, ProcedureKind.Fracture),
+                            ["InternalBleeding"] = ClinicalEntryReason(patient, limb, ProcedureKind.InternalBleeding)
+                        }
+                    });
                 return Reply(id,new JObject { ["overview"]=limbs,["patient"]=selected });
             }
             if(type=="open")
@@ -139,8 +150,8 @@ namespace CasualtiesSurgery.Game
                     return Reply(id,new JObject { ["lease"]=JObject.FromObject(prior.Lease),["snapshot"]=JObject.FromObject(dispatcher.Snapshot(prior.Lease.Operation,connection)) });
                 }
                 var limb=body.limbs[index];
-                string reason=kind==(int)ProcedureKind.Fragment?OperationSession.ClinicalIneligible(body,limb):kind==(int)ProcedureKind.Fracture?FractureStore.ClinicalIneligible(body,limb):InternalBleedingStore.ClinicalIneligible(body,limb);
-                if(reason!=null || limb.shrapnel>255)return Error(id,"ineligible");
+                string reason = ClinicalEntryReason(body, limb, (ProcedureKind)kind);
+                if(reason!=null)return Error(id,"ineligible");
                 // Get starts a new internal episode only after the old one is closed.
                 if(kind==(int)ProcedureKind.InternalBleeding)InternalBleedingStore.Get(limb);
                 var registration=Ensure(body,limb,index,(ProcedureKind)kind,connection);
@@ -193,6 +204,16 @@ namespace CasualtiesSurgery.Game
             }
             return Error(id,"unsupported");
         }
+        internal static string ClinicalEntryReason(Body patient, Limb limb, ProcedureKind kind)
+        {
+            var reason = kind == ProcedureKind.Fragment
+                ? OperationSession.ClinicalIneligible(patient, limb)
+                : kind == ProcedureKind.Fracture
+                    ? FractureStore.ClinicalIneligible(patient, limb)
+                    : InternalBleedingStore.ClinicalIneligible(patient, limb);
+            return reason ?? (limb.shrapnel > 255 ? "Too many fragments for this operation." : null);
+        }
+
         public Body ResultPatient(JObject response)
         {
             var token=response?["snapshot"]?["Operation"];if(token==null)return null;

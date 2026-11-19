@@ -25,7 +25,7 @@ namespace CasualtiesSurgery.Game
                 var rect = (RectTransform)square.transform;
                 rect.SetParent(field, false);
                 rect.anchoredPosition = center + (i == 0 ? Vector2.zero : new Vector2(37, -25));
-                rect.sizeDelta = Vector2.one * (i == 0 ? 68 : 52);
+                rect.sizeDelta = Vector2.one * TreatmentInput.PoolSize(i);
                 squares[i] = square.GetComponent<Image>();
                 squares[i].sprite = SurgeryArt.Get("bloodpool1");
                 squares[i].raycastTarget = false;
