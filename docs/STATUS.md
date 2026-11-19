@@ -2,6 +2,12 @@
 
 Updated: 2026-11-18. Verify Git/process/file state before acting.
 
+## 0.16.2 solo feedback patch
+
+Reversed the shard and moved its mask and pickup anchor to the center seam. Widened shard and laceration pickups in both surgery views, including host validation. Enlarged gel particles and bruises, lowered gel and blood opacity, and darkened the open surgery field. Healed bruises fade, including the last bruise before closure. The internal bleeding usage counter is hidden. See [test checklist](TEST-0.16.2.md).
+
+Release build passed with zero warnings or errors and all 575 procedure, gesture and session checks passed. Twelve embedded sprites and eight packaged WAVs verified. Live visual retest remains pending. Installed with the game closed into the existing plugin location. Built, installed and archived DLL SHA-256 974B0395FEC213A9035F410C9D98F7D8BC2343D022ABD88C2EED5F5A4ACB944F. ZIP SHA-256 5DFCB619044B0A8D6724B597A8912E94B7B2843C06EDE197E45C9D8C40057553. Backup work/backups/CasualtiesSurgery-before-0.16.2-20261118-184104.dll. Host log archive work/diagnostics/before-0.16.2-20261118-184104.
+
 ## 0.16.1 client tester build
 
 Built, packaged, and installed with the game closed into the existing single plugin location. The tester ZIP contains the matching DLL, eight WAVs, checksum manifest, and [test checklist](TEST-0.16.1.md). Both peers should confirm 0.16.1 in their startup logs. The 12 art sprites are embedded in the DLL.

@@ -10,6 +10,12 @@ static class GraceChecks
         check(pull.Move(0.6f,0.1f) && pull.Travel>0.39f, "Parallel pull tolerates doubled lateral deviation");
         check(pull.End(0.6f,-0.3f), "Full outward pull completes");
         check(!pull.End(0.6f,-0.3f), "Fragment release cannot be replayed");
+        check(pull.Begin(.60f, .57f) && pull.Move(.60f, .2f), "Wider shard grab accepts an off-center pickup");
+        check(!pull.Move(1.00f, .02f), "Wider pickup still rejects an excessive sideways drag");
+        check(LacerationDrag.CanGrip(57, 0, 108) && LacerationDrag.CanGrip(-12, 0, 108),
+            "Laceration can be gripped at both widened horizontal margins");
+        check(!LacerationDrag.CanGrip(0, 0, 108) && !LacerationDrag.CanGrip(64, 0, 108),
+            "Laceration grip still requires contact near a side");
         pull.Begin(0,0.38f);
         check(!pull.End(0,0.1f) && pull.Travel==0, "Early release resets fragment travel");
         pull.Begin(0,0.38f); pull.Move(0,-0.1f);

@@ -8,7 +8,7 @@ using UnityEngine.SceneManagement;
 
 namespace CasualtiesSurgery
 {
-    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.16.1")]
+    [BepInPlugin("local.casualties.surgery", "Casualty Center", "0.16.2")]
     [BepInDependency("net.cucorelib", "1.1")]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -141,7 +141,7 @@ namespace CasualtiesSurgery
             developmentTransport=Config.Bind("Development","EnableSurgeryTransport",false,"Enable the experimental authority transport for integration testing. Does not enable multiplayer surgery UI.");
             authorityViews=Config.Bind("Development","EnableAuthorityViews",false,"Opt in to the multiplayer surgery test views. Also enables transport; in singleplayer uses the same command handlers locally. Keep disabled for the stable local views.");
             SceneManager.activeSceneChanged += SceneChanged;
-            Logger.LogInfo("Casualty Center 0.16.1 loaded. EnableAuthorityViews="+authorityViews.Value+", EnableSurgeryTransport="+developmentTransport.Value+"; config="+Config.ConfigFilePath);
+            Logger.LogInfo("Casualty Center 0.16.2 loaded. EnableAuthorityViews="+authorityViews.Value+", EnableSurgeryTransport="+developmentTransport.Value+"; config="+Config.ConfigFilePath);
         }
         void BeginFromHealth(WoundView source, Limb limb)
         {

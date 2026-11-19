@@ -26,6 +26,7 @@ namespace CasualtiesSurgery.Game
         readonly ScalpelTrace scalpel = new ScalpelTrace();
         readonly Image[] lesions = new Image[InternalBleedingState.MaxWounds];
         readonly TextMeshProUGUI[] woundLabels = new TextMeshProUGUI[InternalBleedingState.MaxWounds];
+        readonly BruiseArt[] bruiseArt = new BruiseArt[InternalBleedingState.MaxWounds];
         readonly LacerationArt[] lacerationArt = new LacerationArt[InternalBleedingState.MaxWounds];
         readonly BloodPoolVisual[] pools = new BloodPoolVisual[InternalBleedingState.MaxWounds];
         RectTransform root, field, wheel;
@@ -87,7 +88,7 @@ namespace CasualtiesSurgery.Game
             wheelGraphic = ToolWheelGraphic.Create(root, host.guideText.font, .4f);
             wheel = wheelGraphic.rectTransform;
             BuildStage();
-            effects = new SurgeryEffects(root, host.guideText.font, field);
+            effects = new SurgeryEffects(root, host.guideText.font, field, showUsage: false);
         }
 
         void BuildStage()
@@ -109,14 +110,14 @@ namespace CasualtiesSurgery.Game
                     var rotation = new Vector3(0, 0, state.Wounds[i].Angle);
                     bool laceration = state.Wounds[i].Laceration;
                     lesions[i] = Box(laceration ? "Laceration" : "Bruise", field, position,
-                        laceration ? new Vector2(LacerationDrag.OpenWidth, SeamLength) : Vector2.one * 58, seam);
+                        laceration ? new Vector2(LacerationDrag.OpenWidth, SeamLength) : Vector2.one * SurgeryArt.BruiseSize, seam);
                     lesions[i].rectTransform.localEulerAngles = rotation;
                     if (laceration)
                     {
                         lacerationArt[i] = lesions[i].gameObject.AddComponent<LacerationArt>();
                         lacerationArt[i].Setup(lesions[i], state.Wounds[i].Phase);
                     }
-                    else lesions[i].sprite = SurgeryArt.Get("bruise");
+                    else bruiseArt[i] = new BruiseArt(lesions[i], state.Wounds[i].Phase);
                     actions.Prepare(state.Wounds[i].Pools);
                     pools[i] = new BloodPoolVisual(state.Wounds[i].Pools, field, position, host, actions);
                     woundLabels[i] = Label(field, position + Vector2.down * 80, new Vector2(210, 32), 18);
@@ -166,7 +167,7 @@ namespace CasualtiesSurgery.Game
                 effects.Stop();
                 Plugin.Feedback?.StopLoop(this);
                 if (state.Closed) { Finish("Internal bleeding operation completed."); return; }
-                if (displayed == InternalStage.Repair && UpdateLacerations()) return;
+                if (displayed == InternalStage.Repair && UpdateWoundArt()) return;
                 BuildStage();
             }
             RefreshField();
@@ -211,12 +212,17 @@ namespace CasualtiesSurgery.Game
             RefreshGuide();
         }
 
-        bool UpdateLacerations()
+        bool UpdateWoundArt()
         {
             bool fading = false;
             for (int i = 0; i < state.Wounds.Length; i++)
+            {
+                var wound = state.Wounds[i];
                 if (lacerationArt[i] != null)
-                    fading |= lacerationArt[i].Refresh(state.Wounds[i].Phase, gripping == i ? (float?)LacerationDrag.Width(previousGrip.x) : null);
+                    fading |= lacerationArt[i].Refresh(wound.Phase, gripping == i ? (float?)LacerationDrag.Width(previousGrip.x) : null);
+                else
+                    fading |= bruiseArt[i].Refresh(wound.Phase, wound.GelMl);
+            }
             return fading;
         }
 
@@ -224,7 +230,7 @@ namespace CasualtiesSurgery.Game
         {
             if (displayed == InternalStage.Repair)
             {
-                UpdateLacerations();
+                UpdateWoundArt();
                 for (int i = 0; i < state.Wounds.Length; i++)
                 {
                     var wound = state.Wounds[i];
@@ -233,11 +239,8 @@ namespace CasualtiesSurgery.Game
                         actions.Observe(wound.Pools, true);
                     actions.Prepare(wound.Pools);
                     pools[i].Refresh();
-                    var image = lesions[i];
                     bool laceration = state.Wounds[i].Laceration;
                     bool repaired = wound.Phase == InternalWoundPhase.Repaired;
-                    if (!laceration)
-                        image.color = Color.Lerp(SurgeryArt.Bruise, SurgeryArt.Gel, wound.GelMl / GelRules.FragmentMl);
                     if (laceration)
                     {
                         woundLabels[i].text = repaired ? "Stitched" : wound.Phase == InternalWoundPhase.Pinched
@@ -302,10 +305,10 @@ namespace CasualtiesSurgery.Game
         {
             if (displayed == InternalStage.Repair)
             {
-                UpdateLacerations();
+                UpdateWoundArt();
                 for (int i = 0; i < state.Wounds.Length; i++)
                 {
-                    if (state.Wounds[i].Laceration || (point - WoundPosition(i)).sqrMagnitude > 48 * 48) continue;
+                    if (state.Wounds[i].Laceration || (point - WoundPosition(i)).sqrMagnitude > InternalWound.BruiseGelReach * InternalWound.BruiseGelReach) continue;
                     if (actions.Bruise(state, i, ml)) Good(WoundPosition(i));
                     return;
                 }
@@ -323,9 +326,8 @@ namespace CasualtiesSurgery.Game
                 {
                     var wound = state.Wounds[i];
                     Vector2 relative = WoundLocalPoint(i, point);
-                    float edge = Mathf.Abs(relative.x);
                     if (!wound.Laceration || wound.Phase != InternalWoundPhase.Open || wound.Pools.Blocking ||
-                        edge < 17 || edge > 48 || Mathf.Abs(relative.y) > SeamLength / 2 + 12) continue;
+                        !LacerationDrag.CanGrip(relative.x, relative.y, SeamLength)) continue;
                     gripping = i;
                     previousGrip = relative;
                     Plugin.Feedback?.Grab();

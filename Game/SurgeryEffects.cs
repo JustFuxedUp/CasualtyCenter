@@ -43,12 +43,13 @@ namespace CasualtiesSurgery.Game
         readonly List<Mark> marks=new List<Mark>();
         readonly RectTransform layer,root;readonly TextMeshProUGUI counter;
         Vector2 previous;bool tracing;SurgeryTool previousTool;float gelTick;
-        public const float GelSquareMin = 18, GelSquareMax = 34;
+        public const float GelSquareMin = 26, GelSquareMax = 48;
         public float SutureCm {get;private set;} public float GelMl {get;private set;}
-        public SurgeryEffects(RectTransform root,TMP_FontAsset font,RectTransform field)
+        public SurgeryEffects(RectTransform root,TMP_FontAsset font,RectTransform field,bool showUsage=true)
         {
             this.root=root;
             layer=new GameObject("TransientToolTrail",typeof(RectTransform)).GetComponent<RectTransform>();layer.SetParent(field,false);
+            if (!showUsage) return;
             var go=new GameObject("UsageDebug",typeof(RectTransform),typeof(TextMeshProUGUI));var r=(RectTransform)go.transform;r.SetParent(root,false);r.anchoredPosition=new Vector2(0,-430);r.sizeDelta=new Vector2(940,34);
             counter=go.GetComponent<TextMeshProUGUI>();counter.font=font;counter.fontSize=18;counter.color=new Color(.7f,.85f,.9f);counter.alignment=TextAlignmentOptions.Center;counter.raycastTarget=false;
             UpdateCounter();
@@ -73,7 +74,7 @@ namespace CasualtiesSurgery.Game
             if(tool==SurgeryTool.Gel)
             {
                 dispensed=GelRules.FlowMlPerSecond*dt;GelMl+=dispensed;gelTick+=dt;
-                if(gelTick>=.04f){gelTick=0;float size=Random.Range(GelSquareMin,GelSquareMax);var tint=SurgeryArt.Gel;tint.a=.55f;MarkAt(p+Random.insideUnitCircle*14,Vector2.one*size,tint,.8f,SurgeryArt.Get("gel1"));}
+                if(gelTick>=.04f){gelTick=0;float size=Random.Range(GelSquareMin,GelSquareMax);var tint=SurgeryArt.Gel;tint.a=.32f;MarkAt(p+Random.insideUnitCircle*14,Vector2.one*size,tint,.8f,SurgeryArt.Get("gel1"));}
             }
             previous=p;previousTool=tool;tracing=true;UpdateCounter();return dispensed;
         }
@@ -83,6 +84,6 @@ namespace CasualtiesSurgery.Game
             var go=new GameObject("ToolTrace",typeof(RectTransform),typeof(Image));var r=(RectTransform)go.transform;r.SetParent(layer,false);r.anchoredPosition=p;r.sizeDelta=size;
             var im=go.GetComponent<Image>();im.sprite=sprite;im.color=color;im.raycastTarget=false;marks.Add(new Mark{Image=im,Life=life,Alpha=color.a});return r;
         }
-        void UpdateCounter(){counter.text="DEBUG / this session   Suture: "+SutureCm.ToString("0.00")+" cm   Gel: "+GelMl.ToString("0.0")+" mL";}
+        void UpdateCounter(){if(counter==null)return;counter.text="DEBUG / this session   Suture: "+SutureCm.ToString("0.00")+" cm   Gel: "+GelMl.ToString("0.0")+" mL";}
     }
 }

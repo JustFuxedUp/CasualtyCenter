@@ -88,7 +88,7 @@ namespace CasualtiesSurgery.Game
             Local(px,py,wound.X,wound.Y,wound.Angle,out float lx,out float ly);
             if(command.Action=="wound.gel")
             {
-                if(!Fields(payload,"wound","x","y","seconds") || wound.Laceration || lx*lx+ly*ly>48*48 || !Number(payload["seconds"],out float seconds) ||
+                if(!Fields(payload,"wound","x","y","seconds") || wound.Laceration || lx*lx+ly*ly>InternalWound.BruiseGelReach * InternalWound.BruiseGelReach || !Number(payload["seconds"],out float seconds) ||
                     !timeBudget.Spend(command.Lease,hostTime,seconds))return CommandStatus.Rejected;
                 float before=wound.GelMl;actions.Bruise(stateInternal,woundId,seconds*GelRules.FlowMlPerSecond);ResetInput();
                 if(wound.Phase==InternalWoundPhase.Repaired)Feedback=new TreatmentFeedback(TreatmentRating.Good,target:woundId);
@@ -97,7 +97,7 @@ namespace CasualtiesSurgery.Game
             if(!Fields(payload,"wound","x","y") || !wound.Laceration || wound.Phase!=InternalWoundPhase.Open)return CommandStatus.Rejected;
             if(command.Action=="laceration.grip")
             {
-                if(Math.Abs(lx)<17 || Math.Abs(lx)>48 || Math.Abs(ly)>66)return CommandStatus.Rejected;
+                if(!LacerationDrag.CanGrip(lx, ly, 108))return CommandStatus.Rejected;
                 gripping=woundId;previousX=lx;previousY=ly;return CommandStatus.NoChange;
             }
             if(command.Action!="laceration.drag" || gripping!=woundId)return CommandStatus.Rejected;

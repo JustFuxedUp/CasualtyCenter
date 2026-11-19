@@ -11,7 +11,7 @@ static class FeedbackChecks
         check(ResultRating.Label(41)=="Good" && ResultRating.Label(74)=="Good", "Good spans 41 through 74");
         check(ResultRating.Label(75)=="Great" && ResultRating.Label(100)=="Great", "Great starts at 75");
         check(FragmentPull.CanGrip(0,.38f) && FragmentPull.CanGrip(.35f,.55f), "Exposed tip and grace area are grippable");
-        check(!FragmentPull.CanGrip(.37f,.38f) && !FragmentPull.CanGrip(0,.57f) && !FragmentPull.CanGrip(float.NaN,.38f), "Outside tip and invalid positions rejected");
+        check(!FragmentPull.CanGrip(.67f,.38f) && !FragmentPull.CanGrip(0,.62f) && !FragmentPull.CanGrip(float.NaN,.38f), "Outside tip and invalid positions rejected");
         byte[] bytes;
         using(var stream=new MemoryStream())
         {

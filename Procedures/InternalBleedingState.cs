@@ -13,6 +13,12 @@ namespace CasualtiesSurgery.Procedures
         public const float OpenWidth = 64f;
         public const float ClosedWidth = 12f;
 
+        public static bool CanGrip(float x, float y, float length)
+        {
+            float edge = Math.Abs(x);
+            return edge >= 11 && edge <= 62 && Math.Abs(y) <= length / 2 + 12;
+        }
+
         public static float Width(float forcepsX) =>
             Math.Max(ClosedWidth, Math.Min(OpenWidth, Math.Abs(forcepsX) * 2));
 
@@ -32,6 +38,7 @@ namespace CasualtiesSurgery.Procedures
     public sealed class InternalWound
     {
         public const float Interval = 6f;
+        public const float BruiseGelReach = 56f;
         public InternalWoundPhase Phase;
         public float Seconds = Interval;
         public float GelMl;

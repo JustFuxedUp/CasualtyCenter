@@ -101,7 +101,7 @@ namespace CasualtiesSurgery.Game
             {
                 foreach(var part in parts)
                 {
-                    var w=I.Wounds[part.Id];if(w.Laceration || w.Phase!=InternalWoundPhase.Open || w.Pools.Blocking || (point-new Vector2(w.X,w.Y)).sqrMagnitude>48*48)continue;
+                    var w=I.Wounds[part.Id];if(w.Laceration || w.Phase!=InternalWoundPhase.Open || w.Pools.Blocking || (point-new Vector2(w.X,w.Y)).sqrMagnitude>InternalWound.BruiseGelReach * InternalWound.BruiseGelReach)continue;
                     var payload=TargetPoint(part.Id,point);payload["seconds"]=seconds;presentation.Submit("wound.gel",payload,"gel:"+part.Id);return;
                 }
             }
@@ -138,7 +138,7 @@ namespace CasualtiesSurgery.Game
                 foreach(var part in parts)
                 {
                     var w=I.Wounds[part.Id];Vector2 local=part.Wound.InverseTransformPoint(field.TransformPoint(point));
-                    if(presentation.ResourceBusy("wound:"+part.Id) || !w.Laceration || w.Phase!=InternalWoundPhase.Open || w.Pools.Blocking || Mathf.Abs(local.x)<17 || Mathf.Abs(local.x)>48 || Mathf.Abs(local.y)>66)continue;
+                    if(presentation.ResourceBusy("wound:"+part.Id) || !w.Laceration || w.Phase!=InternalWoundPhase.Open || w.Pools.Blocking || !LacerationDrag.CanGrip(local.x, local.y, 108))continue;
                     grip=part.Id;gripLocal=local;presentation.Submit("laceration.grip",TargetPoint(grip,point));Plugin.Feedback?.Grab();break;
                 }
             if(grip<0)return;
@@ -155,7 +155,7 @@ namespace CasualtiesSurgery.Game
         Vector2 ExtractionPoint(Part part,Vector3 contact)
         {
             Vector2 local=part.Wound.InverseTransformPoint(contact);
-            return new Vector2(local.y/part.Layout.Width,.38f-(local.x-(17.5f+part.Layout.Length*.84f*.47f))/part.Layout.Length);
+            return new Vector2(local.y/part.Layout.Width,.38f-(local.x-FragmentPull.GripCenter(part.Layout.Length))/part.Layout.Length);
         }
         void Extract(Vector3 contact)
         {

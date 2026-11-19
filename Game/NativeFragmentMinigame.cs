@@ -128,7 +128,7 @@ namespace CasualtiesSurgery.Game
                 var mask=new GameObject("ExposedFragment",typeof(RectTransform),typeof(Image),typeof(Mask)).GetComponent<RectTransform>();
                 mask.GetComponent<Mask>().showMaskGraphic=false; mask.GetComponent<Image>().raycastTarget=false;
                 mask.SetParent(art,false); mask.anchorMin=mask.anchorMax=new Vector2(0.5f,0.5f); mask.pivot=new Vector2(0,0.5f);
-                mask.anchoredPosition=new Vector2(17.5f,0); mask.sizeDelta=new Vector2(360,240);
+                mask.anchoredPosition=Vector2.zero; mask.sizeDelta=new Vector2(360,240);
                 var shard=Box("FragmentArtwork",mask,Vector2.zero,Vector2.one,Color.white);
                 shard.sprite=shardSprite; shard.raycastTarget=false;
                 var shardRect=shard.rectTransform;
@@ -136,12 +136,12 @@ namespace CasualtiesSurgery.Game
                 shardRect.anchorMin=shardRect.anchorMax=new Vector2(0,0.5f);
                 float shardLength=layout.Length*0.84f;
                 shardRect.sizeDelta = new Vector2(shardLength * .28f, shardLength);
-                shardRect.localEulerAngles = new Vector3(0, 0, 90);
+                shardRect.localEulerAngles = new Vector3(0, 0, -90);
                 var origin=new Vector2(shardLength*0.15f,0); shardRect.anchoredPosition=origin;
                 actions.Prepare(site.Pools);
                 view.Pools=new BloodPoolVisual(site.Pools,field,new Vector2(layout.X,layout.Y),host,actions);
                 view.Wound=art; view.Fragment=shardRect; view.Mask=mask; view.FragmentOrigin=origin;
-                view.Grip=17.5f+shardLength*0.47f; view.Pull=shardLength*0.35f+8;
+                view.Grip=FragmentPull.GripCenter(layout.Length); view.Pull=shardLength*0.35f+8;
         }
         void SelectFirst()
         {

@@ -12,7 +12,9 @@ namespace CasualtiesSurgery.Game
         static readonly Dictionary<string, Sprite> sprites = new Dictionary<string, Sprite>();
         static readonly List<Texture2D> textures = new List<Texture2D>();
 
-        public static readonly Color OpenField = new Color32(190, 98, 0, 255);
+        public const float BruiseSize = 78f;
+
+        public static readonly Color OpenField = new Color32(139, 65, 0, 255);
         public static readonly Color Blood = new Color32(255, 201, 0, 255);
         public static readonly Color Bruise = new Color32(200, 145, 16, 255);
         public static readonly Color Gel = new Color32(77, 215, 120, 255);
@@ -74,6 +76,32 @@ namespace CasualtiesSurgery.Game
             foreach (var texture in textures) UnityEngine.Object.Destroy(texture);
             sprites.Clear();
             textures.Clear();
+        }
+    }
+
+    internal sealed class BruiseArt
+    {
+        const float FadeSeconds = .3f;
+        readonly Image image;
+        float? fadeStarted;
+
+        public BruiseArt(Image image, InternalWoundPhase initial)
+        {
+            this.image = image;
+            image.sprite = SurgeryArt.Get("bruise");
+            if (initial == InternalWoundPhase.Repaired) fadeStarted = Time.unscaledTime - FadeSeconds;
+        }
+
+        public bool Refresh(InternalWoundPhase phase, float gelMl)
+        {
+            var tint = Color.Lerp(SurgeryArt.Bruise, SurgeryArt.Gel, gelMl / GelRules.FragmentMl);
+            if (phase == InternalWoundPhase.Repaired)
+            {
+                if (!fadeStarted.HasValue) fadeStarted = Time.unscaledTime;
+                tint.a = 1 - Mathf.Clamp01((Time.unscaledTime - fadeStarted.Value) / FadeSeconds);
+            }
+            image.color = tint;
+            return phase == InternalWoundPhase.Repaired && tint.a > 0;
         }
     }
 

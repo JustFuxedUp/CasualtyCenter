@@ -12,8 +12,11 @@ namespace CasualtiesSurgery.Procedures
         public float Travel { get; private set; }
         public FragmentPull(float grace = 2f, float requiredTravel = 0.8f, float endMargin = 0.05f)
         { this.grace=grace; this.requiredTravel=requiredTravel; this.endMargin=endMargin; }
+        // The shard mask starts at the wound seam. Measure grip reach from that same origin.
+        public static float GripCenter(float woundLength) => woundLength * .84f * .47f;
+
         public static bool CanGrip(float x,float y,float grace=2f)
-            =>Finite(x)&&Finite(y)&&Math.Abs(x)<=0.18f*grace&&Math.Abs(y-0.38f)<=0.09f*grace;
+            =>Finite(x)&&Finite(y)&&Math.Abs(x)<=0.33f*grace&&Math.Abs(y-0.38f)<=0.115f*grace;
         public bool Begin(float x, float y)
         {
             Reset();

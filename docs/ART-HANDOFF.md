@@ -1,10 +1,16 @@
 # Art handoff
 
+## 0.16.2 solo feedback
+
+The shard faces the opposite direction from 0.16.1, with clipping starting at the center seam of the wound. The grip anchor follows the shifted shard. Shard pickups allow more vertical and along-shard reach. Lacerations accept pickups farther from either horizontal side.
+
+Bruise sprites are 78 × 78 and fade after healing. Gel draws at 26–48 units and uses lower opacity. Blood pools retain their original 68/52 sizes and use lower opacity. Open surgery flesh uses #8B4100. Internal bleeding hides the usage counter and retains wound labels and procedure feedback.
+
 ## First supplied art pass
 
 The original PNGs live in [assets/art](../assets/art/) and are embedded in the plugin. Both the legacy and authority views use them. Tool wheel icons use the local Together roster color in multiplayer. Gel uses green, blood pools use #FFC900, bruises use an amber tint, and exposed fracture and chest fields use #BE6200.
 
-The 56 × 312 fallback bone uses a sliced sprite. Its shaft fills the existing 56 × 532 bone layout while the ends keep their proportions. The upper piece flips the artwork independently of the forceps contact transform. The supplied shard and small-wound sprites are trimmed at load time, with the external shard tip facing out of the wound.
+The 56 × 312 fallback bone uses a sliced sprite. Its shaft fills the existing 56 × 532 bone layout while the ends keep their proportions. The upper piece flips the artwork independently of the forceps contact transform. The supplied shard and small-wound sprites are trimmed at load time, with the visible end positioned by the wound mask.
 
 The laceration uses one sprite and a shared center seam. Forceps narrow it, reopening eases it to full width, and confirmed suturing fades it over 0.3 seconds. The repair view briefly holds the last fade before showing closure. Live suture thread is still drawn separately.
 
