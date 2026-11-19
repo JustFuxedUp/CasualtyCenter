@@ -26,7 +26,7 @@ namespace CasualtiesSurgery.Game
         readonly ScalpelTrace scalpel = new ScalpelTrace();
         readonly Image[] lesions = new Image[InternalBleedingState.MaxWounds];
         readonly TextMeshProUGUI[] woundLabels = new TextMeshProUGUI[InternalBleedingState.MaxWounds];
-        readonly Image[] stitchMarks = new Image[InternalBleedingState.MaxWounds];
+        readonly LacerationArt[] lacerationArt = new LacerationArt[InternalBleedingState.MaxWounds];
         readonly BloodPoolVisual[] pools = new BloodPoolVisual[InternalBleedingState.MaxWounds];
         RectTransform root, field, wheel;
         TextMeshProUGUI heading;
@@ -102,7 +102,7 @@ namespace CasualtiesSurgery.Game
             var seam = new Color(.51f, .10f, .14f);
             if (displayed == InternalStage.Repair)
             {
-                Box("OpenTorso", field, Vector2.zero, new Vector2(730, 610), new Color(.22f, .055f, .095f));
+                Box("OpenTorso", field, Vector2.zero, new Vector2(730, 610), SurgeryArt.OpenField);
                 for (int i = 0; i < state.Wounds.Length; i++)
                 {
                     var position = WoundPosition(i);
@@ -113,12 +113,10 @@ namespace CasualtiesSurgery.Game
                     lesions[i].rectTransform.localEulerAngles = rotation;
                     if (laceration)
                     {
-                        stitchMarks[i] = Box("StitchedSeam", field, position, new Vector2(24, SeamLength), Color.clear);
-                        stitchMarks[i].rectTransform.localEulerAngles = rotation;
-                        for (int stitch = -2; stitch <= 2; stitch++)
-                            Box("Stitch", stitchMarks[i].transform, new Vector2(0, stitch * 17),
-                                new Vector2(22, 2), new Color(.88f, .94f, .93f));
+                        lacerationArt[i] = lesions[i].gameObject.AddComponent<LacerationArt>();
+                        lacerationArt[i].Setup(lesions[i], state.Wounds[i].Phase);
                     }
+                    else lesions[i].sprite = SurgeryArt.Get("bruise");
                     actions.Prepare(state.Wounds[i].Pools);
                     pools[i] = new BloodPoolVisual(state.Wounds[i].Pools, field, position, host, actions);
                     woundLabels[i] = Label(field, position + Vector2.down * 80, new Vector2(210, 32), 18);
@@ -168,6 +166,7 @@ namespace CasualtiesSurgery.Game
                 effects.Stop();
                 Plugin.Feedback?.StopLoop(this);
                 if (state.Closed) { Finish("Internal bleeding operation completed."); return; }
+                if (displayed == InternalStage.Repair && UpdateLacerations()) return;
                 BuildStage();
             }
             RefreshField();
@@ -212,10 +211,20 @@ namespace CasualtiesSurgery.Game
             RefreshGuide();
         }
 
+        bool UpdateLacerations()
+        {
+            bool fading = false;
+            for (int i = 0; i < state.Wounds.Length; i++)
+                if (lacerationArt[i] != null)
+                    fading |= lacerationArt[i].Refresh(state.Wounds[i].Phase, gripping == i ? (float?)LacerationDrag.Width(previousGrip.x) : null);
+            return fading;
+        }
+
         void RefreshField()
         {
             if (displayed == InternalStage.Repair)
             {
+                UpdateLacerations();
                 for (int i = 0; i < state.Wounds.Length; i++)
                 {
                     var wound = state.Wounds[i];
@@ -227,15 +236,10 @@ namespace CasualtiesSurgery.Game
                     var image = lesions[i];
                     bool laceration = state.Wounds[i].Laceration;
                     bool repaired = wound.Phase == InternalWoundPhase.Repaired;
-                    image.color = repaired ? new Color(.34f, .64f, .59f) : laceration ? new Color(.64f, .11f, .19f) :
-                        Color.Lerp(new Color(.49f, .16f, .37f), new Color(.34f, .64f, .59f), wound.GelMl / GelRules.FragmentMl);
+                    if (!laceration)
+                        image.color = Color.Lerp(SurgeryArt.Bruise, SurgeryArt.Gel, wound.GelMl / GelRules.FragmentMl);
                     if (laceration)
                     {
-                        float width = LacerationDrag.ClosedWidth;
-                        if (wound.Phase == InternalWoundPhase.Open)
-                            width = gripping == i ? LacerationDrag.Width(previousGrip.x) : LacerationDrag.OpenWidth;
-                        image.rectTransform.sizeDelta = new Vector2(width, SeamLength);
-                        stitchMarks[i].gameObject.SetActive(repaired);
                         woundLabels[i].text = repaired ? "Stitched" : wound.Phase == InternalWoundPhase.Pinched
                             ? "Suture · " + Mathf.CeilToInt(wound.Seconds) + "s" : "Laceration";
                     }
@@ -298,6 +302,7 @@ namespace CasualtiesSurgery.Game
         {
             if (displayed == InternalStage.Repair)
             {
+                UpdateLacerations();
                 for (int i = 0; i < state.Wounds.Length; i++)
                 {
                     if (state.Wounds[i].Laceration || (point - WoundPosition(i)).sqrMagnitude > 48 * 48) continue;
@@ -493,10 +498,10 @@ namespace CasualtiesSurgery.Game
             bool blocked = displayed == InternalStage.Incision ? state.IncisionPools.Blocking :
                 displayed == InternalStage.Closure && state.ClosurePools.Blocking;
             host.guideText.text = "Hold " + wheelKey + " for tools. Right-click outside to exit. " +
-                (Tool == SurgeryTool.Suction || blocked ? "Hold suction over each red pool." :
+                (Tool == SurgeryTool.Suction || blocked ? "Hold suction over each blood pool." :
                     Tool == SurgeryTool.Gel && displayed != InternalStage.Repair
                         ? "Gel: coat the incision from end to end."
-                        : instruction + (displayed == InternalStage.Repair ? " Suction clears red pools." : ""));
+                        : instruction + (displayed == InternalStage.Repair ? " Suction clears blood pools." : ""));
         }
 
         public void Finish(string reason)

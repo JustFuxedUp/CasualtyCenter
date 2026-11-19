@@ -1,6 +1,16 @@
 # Art handoff
 
-## Current placeholder dimensions in 0.13.7
+## First supplied art pass
+
+The original PNGs live in [assets/art](../assets/art/) and are embedded in the plugin. Both the legacy and authority views use them. Tool wheel icons use the local Together roster color in multiplayer. Gel uses green, blood pools use #FFC900, bruises use an amber tint, and exposed fracture and chest fields use #BE6200.
+
+The 56 × 312 fallback bone uses a sliced sprite. Its shaft fills the existing 56 × 532 bone layout while the ends keep their proportions. The upper piece flips the artwork independently of the forceps contact transform. The supplied shard and small-wound sprites are trimmed at load time, with the external shard tip facing out of the wound.
+
+The laceration uses one sprite and a shared center seam. Forceps narrow it, reopening eases it to full width, and confirmed suturing fades it over 0.3 seconds. The repair view briefly holds the last fade before showing closure. Live suture thread is still drawn separately.
+
+Playtest both surgery views. Check shard grip and masking through extraction, pool visibility over the orange backdrop, bone fit at both angles, tool wheel labels and multiplayer color, and both a reopened laceration and the fade of the final sutured laceration.
+
+## Historical placeholder dimensions in 0.13.7
 
 Sizes are width Ã— height in logical Unity UI units at default settings. Use them as pixel-canvas targets for flat sprites. Transparent padding may go outside the visible bounds. Draw wounds upright with their seam centered so rotation, grips and suturing share the same origin.
 

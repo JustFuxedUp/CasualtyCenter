@@ -17,6 +17,7 @@ namespace CasualtiesSurgery
         public static bool BlockInput => instance != null &&
             ((instance.healthMenu != null && instance.healthMenu.IsOpen) || Time.frameCount <= instance.releaseFrame || instance.waitForRightRelease || (instance.active != null && instance.active.BlocksToolInput));
         public static bool OperationVisible => instance != null && instance.active != null;
+        internal static Color ToolTint => instance?.network?.LocalPlayerTint() ?? Color.white;
         internal static SurgeryFeedback Feedback => instance?.feedback;
         internal static SurgeryTool SelectedTool {get;set;} = SurgeryTool.Forceps;
         SurgeryFeedback feedback;
@@ -263,7 +264,7 @@ namespace CasualtiesSurgery
         {
             Stop(); healthMenu?.Dispose(); SceneManager.activeSceneChanged -= SceneChanged;
             network?.Dispose();network=null;
-            harmony?.UnpatchSelf(); if(feedback!=null)Destroy(feedback); if (instance == this) instance = null;
+            SurgeryArt.Clear(); harmony?.UnpatchSelf(); if(feedback!=null)Destroy(feedback); if (instance == this) instance = null;
         }
     }
 }

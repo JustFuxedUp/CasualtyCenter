@@ -27,6 +27,7 @@ namespace CasualtiesSurgery.Game
                 rect.anchoredPosition = center + (i == 0 ? Vector2.zero : new Vector2(37, -25));
                 rect.sizeDelta = Vector2.one * (i == 0 ? SurgeryEffects.GelSquareMax * 2 : SurgeryEffects.GelSquareMin + SurgeryEffects.GelSquareMax);
                 squares[i] = square.GetComponent<Image>();
+                squares[i].sprite = SurgeryArt.Get("bloodpool1");
                 squares[i].raycastTarget = false;
                 square.SetActive(false);
             }
@@ -42,7 +43,9 @@ namespace CasualtiesSurgery.Game
                 if (active)
                     squares[i].rectTransform.localEulerAngles = new Vector3(0, 0,
                         (i == 0 ? state.FirstAngle : state.SecondAngle) ?? 0);
-                squares[i].color = new Color(.78f, .055f, .12f, Mathf.Lerp(.18f, .65f, Mathf.Max(.025f,remaining-preview[i]) / BloodPools.ClearSeconds));
+                var tint = SurgeryArt.Blood;
+                tint.a = Mathf.Lerp(.18f, .85f, Mathf.Max(.025f, remaining - preview[i]) / BloodPools.ClearSeconds);
+                squares[i].color = tint;
             }
         }
         public void Bind(BloodPools value)

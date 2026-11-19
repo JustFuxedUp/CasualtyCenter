@@ -55,7 +55,7 @@ namespace CasualtiesSurgery.Game
             }
             else if(displayed==FractureStage.Alignment)
             {
-                Box("OpenIncision",field,Vector2.zero,new Vector2(300,410),new Color(.25f,.06f,.09f));
+                Box("OpenIncision",field,Vector2.zero,new Vector2(300,410),SurgeryArt.OpenField);
                 BuildBones();
             }
             else Box("ClosureWound",field,Vector2.zero,new Vector2(14,180),new Color(.48f,.09f,.12f));
@@ -84,6 +84,7 @@ namespace CasualtiesSurgery.Game
                     new Color(.25f, .45f, .65f, .6f)).rectTransform;
                 var bone = Box("BonePiece", boneViewport, pivot, new Vector2(56, pivotDistance),
                     new Color(.88f, .84f, .7f)).rectTransform;
+                SurgeryArt.Bone(bone, !lower);
                 target.pivot = bone.pivot = new Vector2(.5f, lower ? 0 : 1);
                 target.anchoredPosition = bone.anchoredPosition = pivot;
                 bone.localEulerAngles = new Vector3(0, 0, state.Angles[i]);
@@ -214,7 +215,7 @@ namespace CasualtiesSurgery.Game
         {
             if(Ended||heading==null)return;
             heading.text=limb.fullName+" / "+state.Stage+" / "+Tool+" / disinfected "+Mathf.RoundToInt(state.Coverage*100)+"%";
-            host.guideText.text="Hold right mouse: tools. Right-click outside: exit. "+(Tool==SurgeryTool.Suction || Pools.Blocking?"Suction: hold over each red pool.":Tool==SurgeryTool.Gel?"Gel: coat the incision from end to end; blue-green marks show coverage.":state.Stage==FractureStage.Incision?"Scalpel: touch all gold dots while cutting.":state.Stage==FractureStage.Alignment?"Forceps: grip near a bone end, rotate to the blue guide, release.":"Suture: cross the incision three times, then release.");
+            host.guideText.text="Hold right mouse: tools. Right-click outside: exit. "+(Tool==SurgeryTool.Suction || Pools.Blocking?"Suction: hold over each blood pool.":Tool==SurgeryTool.Gel?"Gel: coat the incision from end to end; blue-green marks show coverage.":state.Stage==FractureStage.Incision?"Scalpel: touch all gold dots while cutting.":state.Stage==FractureStage.Alignment?"Forceps: grip near a bone end, rotate to the blue guide, release.":"Suture: cross the incision three times, then release.");
         }
         public void Finish(string reason){if(Ended)return;log(reason);OnEnded();if(host!=null && ReferenceEquals(host.currentMinigame,this))host.EndMinigame();}
         public void OnEnded()

@@ -56,9 +56,22 @@ namespace CasualtiesSurgery.Game
             return null;
         }
         SurgeryHostRouter CreateHost()=>new SurgeryHostRouter(Resolve,()=>Time.unscaledTimeAsDouble,recovery,reduction,scale,ResolveInspection,permission,ColorOf);
-        byte[] ColorOf(Guid connection)
+        public Color LocalPlayerTint()
         {
-            if(!peers.TryGetValue(connection,out var peer) || playerColor==null)return null;
+            if (!Available || PlayerCamera.main == null || !(players.GetValue(null) is IDictionary roster)) return Color.white;
+            foreach (var peer in roster.Values)
+                if (ReferenceEquals(body.GetValue(peer), PlayerCamera.main.body))
+                {
+                    var rgb = ReadColor(peer);
+                    return new Color(Mathf.Max(.12f, rgb[0] / 255f), Mathf.Max(.12f, rgb[1] / 255f), Mathf.Max(.12f, rgb[2] / 255f));
+                }
+            return Color.white;
+        }
+
+        byte[] ColorOf(Guid connection) => peers.TryGetValue(connection, out var peer) ? ReadColor(peer) : null;
+
+        byte[] ReadColor(object peer)
+        {
             var color=playerColor.GetValue(peer);return new[]{(byte)colorRed.GetValue(color),(byte)colorGreen.GetValue(color),(byte)colorBlue.GetValue(color)};
         }
         void PromptConsent(Body actor,Body patient,Action<bool> answer)

@@ -2,6 +2,10 @@
 
 Updated: 2026-11-18. Verify Git/process/file state before acting.
 
+## Unreleased supplied art pass
+
+The supplied tool icons, wound sprites, gel, blood pool, shard and fallback bone are embedded in the plugin and wired into both surgery views. Lacerations narrow, ease open when they reopen and fade after confirmed suturing. See [ART-HANDOFF](ART-HANDOFF.md) for palette, layout and visual acceptance details. Release build and embedded artwork manifest verified. Live rendering remains to be checked. The delivered 0.16.0 build and package are historical references for this pass.
+
 ## Readability guidance added (2026-11-18)
 
 Added [CODE-STYLE](CODE-STYLE.md) and [LUNA-READABILITY-HANDOFF](LUNA-READABILITY-HANDOFF.md), linked from AGENTS and INDEX. These define bounded formatting/comment work, explanations of non-obvious interactions, verified documentation pointers and escalation boundaries. No Luna agent was launched and no source formatting was performed. Documentation-only checks: local links/headings and diff validation; no build or test rerun needed. Source/build/installed/package state from the gameplay handoff below is unchanged.

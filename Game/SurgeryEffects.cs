@@ -73,15 +73,15 @@ namespace CasualtiesSurgery.Game
             if(tool==SurgeryTool.Gel)
             {
                 dispensed=GelRules.FlowMlPerSecond*dt;GelMl+=dispensed;gelTick+=dt;
-                if(gelTick>=.04f){gelTick=0;float size=Random.Range(GelSquareMin,GelSquareMax);MarkAt(p+Random.insideUnitCircle*14,Vector2.one*size,new Color(.25f,.9f,.65f,.13f),.8f);}
+                if(gelTick>=.04f){gelTick=0;float size=Random.Range(GelSquareMin,GelSquareMax);var tint=SurgeryArt.Gel;tint.a=.55f;MarkAt(p+Random.insideUnitCircle*14,Vector2.one*size,tint,.8f,SurgeryArt.Get("gel1"));}
             }
             previous=p;previousTool=tool;tracing=true;UpdateCounter();return dispensed;
         }
-        RectTransform MarkAt(Vector2 p,Vector2 size,Color color,float life)
+        RectTransform MarkAt(Vector2 p,Vector2 size,Color color,float life,Sprite sprite=null)
         {
             if(marks.Count>=160){Object.Destroy(marks[0].Image.gameObject);marks.RemoveAt(0);}
             var go=new GameObject("ToolTrace",typeof(RectTransform),typeof(Image));var r=(RectTransform)go.transform;r.SetParent(layer,false);r.anchoredPosition=p;r.sizeDelta=size;
-            var im=go.GetComponent<Image>();im.color=color;im.raycastTarget=false;marks.Add(new Mark{Image=im,Life=life,Alpha=color.a});return r;
+            var im=go.GetComponent<Image>();im.sprite=sprite;im.color=color;im.raycastTarget=false;marks.Add(new Mark{Image=im,Life=life,Alpha=color.a});return r;
         }
         void UpdateCounter(){counter.text="DEBUG / this session   Suture: "+SutureCm.ToString("0.00")+" cm   Gel: "+GelMl.ToString("0.0")+" mL";}
     }

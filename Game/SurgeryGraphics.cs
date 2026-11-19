@@ -20,13 +20,22 @@ namespace CasualtiesSurgery.Game
             wheel.ToolCount = tools.Length;
             for (int i = 0; i < tools.Length; i++)
             {
+                var tool = tools[i] == "Suture" ? "Sutures" : tools[i];
+                var icon = new GameObject(tool, typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+                icon.rectTransform.SetParent(wheel.rectTransform, false);
+                icon.rectTransform.sizeDelta = Vector2.one * 64;
+                icon.rectTransform.anchoredPosition = Polar(i * 2 * Mathf.PI / tools.Length, 120);
+                icon.sprite = SurgeryArt.Get(tool);
+                icon.color = Plugin.ToolTint;
+                icon.raycastTarget = false;
+
                 var label = new GameObject(tools[i], typeof(RectTransform), typeof(TextMeshProUGUI))
                     .GetComponent<TextMeshProUGUI>();
                 label.rectTransform.SetParent(wheel.rectTransform, false);
                 label.rectTransform.sizeDelta = new Vector2(140, 70);
-                label.rectTransform.anchoredPosition = Polar(i * 2 * Mathf.PI / tools.Length, 122);
+                label.rectTransform.anchoredPosition = Polar(i * 2 * Mathf.PI / tools.Length, 120) + Vector2.down * 33;
                 label.font = font;
-                label.fontSize = 25;
+                label.fontSize = 19;
                 label.alignment = TextAlignmentOptions.Center;
                 label.raycastTarget = false;
                 label.text = tools[i];

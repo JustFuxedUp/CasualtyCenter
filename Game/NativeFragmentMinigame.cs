@@ -32,7 +32,7 @@ namespace CasualtiesSurgery.Game
         }
         readonly List<SiteView> sites=new List<SiteView>();
         int page;
-        Sprite nativeShard;
+        Sprite shardSprite;
         float gripPosition, pullDistance;
         readonly Action<string> log;
         RectTransform root, field;
@@ -100,10 +100,7 @@ namespace CasualtiesSurgery.Game
             background.raycastTarget = true; windowBounds=background.rectTransform;
             heading = Text("Heading", root, new Vector2(0, 440), new Vector2(940, 95), 24);
             field = Box("BodySection", root, new Vector2(0, 5), new Vector2(900, 700), new Color(0.045f,0.085f,0.16f)).rectTransform;
-            var nativePrefab=Resources.Load<GameObject>("Special/ShrapnelMinigame");
-            var nativeImage=nativePrefab!=null && nativePrefab.transform.childCount>0 ? nativePrefab.transform.GetChild(0).GetComponent<Image>() : null;
-            if(nativeImage==null || nativeImage.sprite==null) throw new InvalidOperationException("Native shrapnel sprite missing.");
-            nativeShard=nativeImage.sprite;
+            shardSprite = SurgeryArt.Get("fragment1");
             bool bleedingAtEntry = patientLimb.bleedAmount > 0;
             foreach(var site in board.Sites)
             {
@@ -125,22 +122,21 @@ namespace CasualtiesSurgery.Game
             if(view.Wound!=null) return;
                 var site=view.Site; var layout=view.Layout;
                 var art=Box("Wound "+site.Id,field,new Vector2(layout.X,layout.Y),new Vector2(35,layout.Length),new Color(0.48f,0.09f,0.12f)).rectTransform;
+                art.GetComponent<Image>().sprite = SurgeryArt.Get("smallwound");
                 art.localScale=Vector3.one*viewScale; art.localEulerAngles=new Vector3(0,0,layout.Angle);
                 // The wound runs vertically in local space. The shard crosses it horizontally.
                 var mask=new GameObject("ExposedFragment",typeof(RectTransform),typeof(Image),typeof(Mask)).GetComponent<RectTransform>();
                 mask.GetComponent<Mask>().showMaskGraphic=false; mask.GetComponent<Image>().raycastTarget=false;
                 mask.SetParent(art,false); mask.anchorMin=mask.anchorMax=new Vector2(0.5f,0.5f); mask.pivot=new Vector2(0,0.5f);
                 mask.anchoredPosition=new Vector2(17.5f,0); mask.sizeDelta=new Vector2(360,240);
-                var shard=Box("NativeShrapnel",mask,Vector2.zero,Vector2.one,Color.white);
-                shard.sprite=nativeShard; shard.raycastTarget=false;
+                var shard=Box("FragmentArtwork",mask,Vector2.zero,Vector2.one,Color.white);
+                shard.sprite=shardSprite; shard.raycastTarget=false;
                 var shardRect=shard.rectTransform;
                 // Anchor to the mask's left edge so the concealed base stays at the cut.
                 shardRect.anchorMin=shardRect.anchorMax=new Vector2(0,0.5f);
                 float shardLength=layout.Length*0.84f;
-                Vector2 shardSize=nativeShard.rect.size*(shardLength/nativeShard.rect.height);
-                shardSize.x*=1.25f; // Broader silhouette; the long axis stays perpendicular to the cut.
-                shardRect.sizeDelta=shardSize;
-                shardRect.localEulerAngles=new Vector3(0,0,-90);
+                shardRect.sizeDelta = new Vector2(shardLength * .28f, shardLength);
+                shardRect.localEulerAngles = new Vector3(0, 0, 90);
                 var origin=new Vector2(shardLength*0.15f,0); shardRect.anchoredPosition=origin;
                 actions.Prepare(site.Pools);
                 view.Pools=new BloodPoolVisual(site.Pools,field,new Vector2(layout.X,layout.Y),host,actions);
@@ -181,7 +177,7 @@ namespace CasualtiesSurgery.Game
                 v.Wound.gameObject.SetActive(visible);
                 v.Pools.Refresh(visible);
                 v.Fragment.gameObject.SetActive(!v.Site.Extracted);
-                v.Wound.GetComponent<Image>().color=Color.Lerp(new Color(.48f,.09f,.12f),new Color(.25f,.8f,.7f),v.Site.GelMl/GelRules.FragmentMl);
+                v.Wound.GetComponent<Image>().color=SurgeryArt.FragmentWound(v.Site.GelMl);
             }
             if(strokeRoot!=null)strokeRoot.SetAsLastSibling();
         }
@@ -391,7 +387,7 @@ namespace CasualtiesSurgery.Game
             }
             if(target==null)return;
             if(!actions.FragmentGel(board,target.Site,ml))return;
-            target.Wound.GetComponent<Image>().color=Color.Lerp(new Color(.48f,.09f,.12f),new Color(.25f,.8f,.7f),target.Site.GelMl/GelRules.FragmentMl);
+            target.Wound.GetComponent<Image>().color=SurgeryArt.FragmentWound(target.Site.GelMl);
             if(target.Site.GelMl<GelRules.FragmentMl)return;
             SelectSite(target);
             if(!actions.Complete(session,target.Site,100,true)){Finish("Wound changed before gel closure.");return;}
@@ -538,7 +534,7 @@ namespace CasualtiesSurgery.Game
             if (Ended || heading == null) return;
             bool extraction = session.Procedure.Stage == FragmentStage.Extraction;
             heading.text = patientLimb.fullName+" / "+board.Remaining+" wounds"+ (board.NextId>12 ? " / page "+(page+1)+" (PgUp/PgDn)" : "");
-            host.guideText.text = "Hold " + wheelKey + " inside for tools. Right-click outside to exit. " + (Plugin.SelectedTool==SurgeryTool.Suction ? "Hold suction over each red pool." : selectedSite.Pools.Blocking ? "Clear red pools with suction before treating that wound." : Plugin.SelectedTool==SurgeryTool.Gel ? "Gel: hold over an extracted wound to close it (2 mL)." : Plugin.SelectedTool==SurgeryTool.Scalpel ? "No cutting objectives here; scalpel use damages tissue." : forceps ? "Pull until loose, then release." : "Cross the wound three times, then release.");
+            host.guideText.text = "Hold " + wheelKey + " inside for tools. Right-click outside to exit. " + (Plugin.SelectedTool==SurgeryTool.Suction ? "Hold suction over each blood pool." : selectedSite.Pools.Blocking ? "Clear blood pools with suction before treating that wound." : Plugin.SelectedTool==SurgeryTool.Gel ? "Gel: hold over an extracted wound to close it (2 mL)." : Plugin.SelectedTool==SurgeryTool.Scalpel ? "No cutting objectives here; scalpel use damages tissue." : forceps ? "Pull until loose, then release." : "Cross the wound three times, then release.");
         }
         public void Finish(string reason)
         {

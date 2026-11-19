@@ -68,14 +68,16 @@ namespace CasualtiesSurgery.Game
         float nextMistake;
         readonly List<Image> dots=new List<Image>();
         readonly List<RectTransform> bones=new List<RectTransform>();
+        readonly List<Image> boneArtwork = new List<Image>();
         sealed class Part
         {
             public int Id;
-            public RectTransform Wound,Fragment,Stitches;
+            public RectTransform Wound,Fragment;
             public Vector2 FragmentOrigin;
             public TextMeshProUGUI Label;
             public BloodPoolVisual Pools;
             public SiteLayout Layout;
+            public LacerationArt Laceration;
         }
         readonly List<Part> parts=new List<Part>();
         BloodPoolVisual outerPool;
@@ -133,6 +135,11 @@ namespace CasualtiesSurgery.Game
             if(BlocksToolInput && Input.GetKeyDown(KeyBinds.GetBind("pause"))){Finish("Surgery interrupted.");return;}
             if(!presentation.Ready){RefreshGuide();return;}
             if(Complete){Finish("Surgery completed.");return;}
+            if (kind == ProcedureKind.InternalBleeding && displayed == (int)InternalStage.Repair && Stage == (int)InternalStage.Closure && UpdateLacerations())
+            {
+                Plugin.Feedback?.StopLoop(this);
+                return;
+            }
             if(displayed!=Stage || (kind==ProcedureKind.Fragment && displayedCount!=B.NextId))BuildStage();
             effects.Tick();RefreshState();
             bool wheelHandled=HandleWheel();UpdatePeerVisuals(!wheelHandled && ready && Time.deltaTime>0);
@@ -156,7 +163,7 @@ namespace CasualtiesSurgery.Game
             if(kind==ProcedureKind.Fragment)scale=presentation.ViewScale;
             ResetGesture(true);effects?.Detach();peerVisuals?.Dispose();visualTrail.Clear();visualHeld=false;
             if(field!=null){field.gameObject.SetActive(false);Object.Destroy(field.gameObject);}
-            parts.Clear();bones.Clear();dots.Clear();outerPool=null;prep=null;
+            parts.Clear();bones.Clear();boneArtwork.Clear();dots.Clear();outerPool=null;prep=null;
             field=Box("OperatingField",root,kind==ProcedureKind.InternalBleeding?Vector2.zero:new Vector2(0,5),new Vector2(900,700),new Color(.045f,.085f,.16f)).rectTransform;
             field.SetSiblingIndex(1);peerVisuals=new SurgeryPeerVisuals(field,host);thread=new SutureThread(field);displayed=Stage;displayedCount=kind==ProcedureKind.Fragment?B.NextId:0;
             log("Authority stage: "+kind+" limb="+Array.IndexOf(body.limbs,limb)+" phase="+Stage+" sample="+presentation.Sample);
@@ -178,7 +185,7 @@ namespace CasualtiesSurgery.Game
         }
         void BuildBones()
         {
-            Box("OpenIncision",field,Vector2.zero,new Vector2(300,410),new Color(.25f,.06f,.09f));field.SetAsFirstSibling();
+            Box("OpenIncision",field,Vector2.zero,new Vector2(300,410),SurgeryArt.OpenField);field.SetAsFirstSibling();
             boneViewport=new GameObject("BoneViewport",typeof(RectTransform),typeof(RectMask2D)).GetComponent<RectTransform>();
             boneViewport.SetParent(field,false);boneViewport.position=root.position;boneViewport.sizeDelta=root.rect.size;
             for(int n=0;n<2;n++)
@@ -186,55 +193,68 @@ namespace CasualtiesSurgery.Game
                 bool lower=n==0;var pivot=new Vector2(0,lower?-532:532);
                 var target=Box("AlignmentTarget",boneViewport,pivot,new Vector2(18,532),new Color(.25f,.45f,.65f,.6f)).rectTransform;
                 var bone=Box("BonePiece",boneViewport,pivot,new Vector2(56,532),new Color(.88f,.84f,.7f)).rectTransform;
+                boneArtwork.Add(SurgeryArt.Bone(bone, !lower));
                 target.pivot=bone.pivot=new Vector2(.5f,lower?0:1);target.anchoredPosition=bone.anchoredPosition=pivot;bones.Add(bone);
             }
         }
         void BuildInternal()
         {
-            Box("OpenTorso",field,Vector2.zero,new Vector2(730,610),new Color(.22f,.055f,.095f));
+            Box("OpenTorso",field,Vector2.zero,new Vector2(730,610),SurgeryArt.OpenField);
             for(int n=0;n<I.Wounds.Length;n++)
             {
                 var w=I.Wounds[n];var pos=new Vector2(w.X,w.Y);
                 var part=new Part {Id=n,Wound=Box(w.Laceration?"Laceration":"Bruise",field,pos,w.Laceration?new Vector2(64,108):Vector2.one*58,Color.white).rectTransform};
                 part.Wound.localEulerAngles=new Vector3(0,0,w.Angle);
-                if(w.Laceration)
+                var image = part.Wound.GetComponent<Image>();
+                if (w.Laceration)
                 {
-                    part.Stitches=Box("StitchedSeam",field,pos,new Vector2(24,108),Color.clear).rectTransform;part.Stitches.localEulerAngles=new Vector3(0,0,w.Angle);
-                    for(int s=-2;s<=2;s++)Box("Stitch",part.Stitches,new Vector2(0,s*17),new Vector2(22,2),new Color(.88f,.94f,.93f));
+                    part.Laceration = image.gameObject.AddComponent<LacerationArt>();
+                    part.Laceration.Setup(image, w.Phase);
                 }
+                else image.sprite = SurgeryArt.Get("bruise");
                 part.Pools=new BloodPoolVisual(w.Pools,field,pos,host,null);part.Label=Label(field,pos+Vector2.down*80,new Vector2(210,32),18);parts.Add(part);
             }
         }
         void BuildFragments()
         {
             if(!B.Sites.Any(s=>!s.Completed && s.Id/12==page))page=B.Sites.First(s=>!s.Completed).Id/12;
-            var prefab=Resources.Load<GameObject>("Special/ShrapnelMinigame");
-            var sprite=prefab!=null && prefab.transform.childCount>0?prefab.transform.GetChild(0).GetComponent<Image>()?.sprite:null;
-            if(sprite==null)throw new InvalidOperationException("Native shrapnel sprite missing.");
+            var sprite = SurgeryArt.Get("fragment1");
             foreach(var site in B.Sites.Where(s=>!s.Completed && s.Id/12==page))
             {
                 var layout=B.Layout(site.Id);var pos=new Vector2(layout.X,layout.Y);
                 var part=new Part {Id=site.Id,Layout=layout,Wound=Box("Wound "+site.Id,field,pos,new Vector2(35,layout.Length),new Color(.48f,.09f,.12f)).rectTransform};
+                part.Wound.GetComponent<Image>().sprite = SurgeryArt.Get("smallwound");
                 part.Wound.localScale=Vector3.one*scale;part.Wound.localEulerAngles=new Vector3(0,0,layout.Angle);
                 var mask=new GameObject("ExposedFragment",typeof(RectTransform),typeof(Image),typeof(Mask)).GetComponent<RectTransform>();mask.SetParent(part.Wound,false);
                 mask.GetComponent<Mask>().showMaskGraphic=false;mask.GetComponent<Image>().raycastTarget=false;
                 mask.pivot=new Vector2(0,.5f);mask.anchoredPosition=new Vector2(17.5f,0);mask.sizeDelta=new Vector2(360,240);
-                var image=Box("NativeShrapnel",mask,Vector2.zero,Vector2.one,Color.white);image.sprite=sprite;part.Fragment=image.rectTransform;
+                var image=Box("FragmentArtwork",mask,Vector2.zero,Vector2.one,Color.white);image.sprite=sprite;part.Fragment=image.rectTransform;
                 part.Fragment.anchorMin=part.Fragment.anchorMax=new Vector2(0,.5f);float length=layout.Length*.84f;
-                var size=sprite.rect.size*(length/sprite.rect.height);size.x*=1.25f;part.Fragment.sizeDelta=size;part.Fragment.localEulerAngles=new Vector3(0,0,-90);
+                part.Fragment.sizeDelta = new Vector2(length * .28f, length);
+                part.Fragment.localEulerAngles = new Vector3(0, 0, 90);
                 part.FragmentOrigin=new Vector2(length*.15f,0);part.Fragment.anchoredPosition=part.FragmentOrigin;
                 part.Pools=new BloodPoolVisual(site.Pools,field,pos,host,null);part.Label=Label(field,pos+Vector2.down*60,new Vector2(160,26),16);parts.Add(part);
             }
         }
+        bool UpdateLacerations()
+        {
+            bool fading = false;
+            foreach (var part in parts)
+                if (part.Laceration != null)
+                    fading |= part.Laceration.Refresh(I.Wounds[part.Id].Phase, grip == part.Id ? (float?)LacerationDrag.Width(gripLocal.x) : null);
+            return fading;
+        }
+
         void RefreshState()
         {
+            if (kind == ProcedureKind.InternalBleeding && Stage == (int)InternalStage.Repair) UpdateLacerations();
             if(prep!=null){prep.Bind(Coverage);prep.Refresh(Stage==0);}
             if(outerPool!=null){outerPool.Bind(Outer);outerPool.Refresh();}
             for(int n=0;n<dots.Count;n++)dots[n].gameObject.SetActive(!(kind==ProcedureKind.Fracture?F.Cuts:I.Cuts)[n]);
             for(int n=0;n<bones.Count;n++)
             {
                 if(grip!=n)bones[n].localEulerAngles=new Vector3(0,0,F.Angles[n]);
-                bones[n].GetComponent<Image>().color=presentation.ResourceBusy("bone:"+n)?new Color(.55f,.65f,.8f):new Color(.88f,.84f,.7f);
+                boneArtwork[n].color=presentation.ResourceBusy("bone:"+n)?new Color(.55f,.65f,.8f):Color.white;
             }
             foreach(var part in parts)
             {
@@ -247,19 +267,15 @@ namespace CasualtiesSurgery.Game
                     float opacity=presentation.ExtractionOpacity(part.Id);
                     part.Fragment.gameObject.SetActive(visible && (preview?opacity>0:!site.Extracted));
                     part.Fragment.GetComponent<Image>().color=new Color(1,1,1,opacity);
-                    part.Wound.GetComponent<Image>().color=Color.Lerp(new Color(.48f,.09f,.12f),new Color(.25f,.8f,.7f),site.GelMl/GelRules.FragmentMl);
+                    part.Wound.GetComponent<Image>().color=SurgeryArt.FragmentWound(site.GelMl);
                     if(grip!=part.Id && !preview){part.Fragment.anchoredPosition=part.FragmentOrigin;part.Fragment.GetComponent<Image>().maskable=true;}
                 }
                 else
                 {
                     var w=I.Wounds[part.Id];bool repaired=w.Phase==InternalWoundPhase.Repaired;
                     part.Pools.Bind(w.Pools);part.Pools.Refresh();
-                    part.Wound.GetComponent<Image>().color=repaired?new Color(.34f,.64f,.59f):w.Laceration?new Color(.64f,.11f,.19f):Color.Lerp(new Color(.49f,.16f,.37f),new Color(.34f,.64f,.59f),w.GelMl/GelRules.FragmentMl);
-                    if(w.Laceration)
-                    {
-                        part.Wound.sizeDelta=new Vector2(w.Phase!=InternalWoundPhase.Open?12:grip==part.Id?LacerationDrag.Width(gripLocal.x):64,108);
-                        part.Stitches.gameObject.SetActive(repaired);
-                    }
+                    if (!w.Laceration)
+                        part.Wound.GetComponent<Image>().color = Color.Lerp(SurgeryArt.Bruise, SurgeryArt.Gel, w.GelMl / GelRules.FragmentMl);
                     part.Label.text=presentation.ResourceBusy("wound:"+part.Id)?"In use by surgeon":repaired?(w.Laceration?"Stitched":"Healed"):w.Phase==InternalWoundPhase.Pinched?"Suture · "+Mathf.CeilToInt(Mathf.Max(0,w.Seconds-(float)presentation.SnapshotAge))+"s":w.Laceration?"Laceration":"Bruise";
                 }
             }
@@ -306,7 +322,7 @@ namespace CasualtiesSurgery.Game
             if(heading==null || Ended)return;
             if(!presentation.Ready){heading.text="Connecting surgery…";host.guideText.text="Waiting for the host. Right-click outside to cancel.";return;}
             heading.text=limb.fullName+" / "+(kind==ProcedureKind.Fragment?B.Remaining+" wounds / page "+(page+1):kind==ProcedureKind.Fracture?F.Stage.ToString():I.Stage.ToString())+" / "+Tool+(presentation.Participants>1?" / "+presentation.Participants+" surgeons":"");
-            host.guideText.text="Hold right mouse: tools. Right-click outside: exit. "+(Tool==SurgeryTool.Suction?"Hold over each red pool.":Tool==SurgeryTool.Gel?"Coat the incision or hold over a bruise/extracted wound.":Tool==SurgeryTool.Suture?"Cross the wound three times, then release.":Tool==SurgeryTool.Scalpel?"Touch the gold dots while cutting.":kind==ProcedureKind.Fracture?"Grip a bone, align to the blue guide and release.":kind==ProcedureKind.InternalBleeding?"Grip a long edge and drag into the center.":"Pull a shard until loose, then release. PgUp/PgDn: pages.");
+            host.guideText.text="Hold right mouse: tools. Right-click outside: exit. "+(Tool==SurgeryTool.Suction?"Hold over each blood pool.":Tool==SurgeryTool.Gel?"Coat the incision or hold over a bruise/extracted wound.":Tool==SurgeryTool.Suture?"Cross the wound three times, then release.":Tool==SurgeryTool.Scalpel?"Touch the gold dots while cutting.":kind==ProcedureKind.Fracture?"Grip a bone, align to the blue guide and release.":kind==ProcedureKind.InternalBleeding?"Grip a long edge and drag into the center.":"Pull a shard until loose, then release. PgUp/PgDn: pages.");
         }
         public void Finish(string reason){if(Ended)return;bool refused=presentation.Error!=null;log(reason);OnEnded();if(host!=null && ReferenceEquals(host.currentMinigame,this))host.EndMinigame();if(refused)Plugin.EntryNotice(source,limb,reason);}
         public void OnEnded()

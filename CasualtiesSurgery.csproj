@@ -13,6 +13,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
+    <EmbeddedResource Include="assets/art/*.png" LogicalName="SurgeryArt.%(Filename)%(Extension)" />
+    <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(ManagedPath)/UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(ManagedPath)/UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Newtonsoft.Json"><HintPath>$(ManagedPath)/Newtonsoft.Json.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.AudioModule"><HintPath>$(ManagedPath)/UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>

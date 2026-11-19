@@ -53,7 +53,7 @@ namespace CasualtiesSurgery.Game
                 for(int i=0;i<peer.Marks.Count;i++)
                 {
                     var mark=peer.Marks[i];mark.gameObject.SetActive(i<count);if(i>=count)continue;
-                    var rect=mark.rectTransform;var color=tint;color.a=(s.Tool==3?.12f:.3f)*fade;mark.color=color;
+                    var rect=mark.rectTransform;var color=tint;color.a=(s.Tool==3?.12f:.3f)*fade;mark.color=color;mark.sprite=s.Tool==3?SurgeryArt.Get("gel1"):null;
                     if(line)
                     {
                         var a=new Vector2(s.Trail[i*2],s.Trail[i*2+1]);var b=new Vector2(s.Trail[i*2+2],s.Trail[i*2+3]);var delta=b-a;
