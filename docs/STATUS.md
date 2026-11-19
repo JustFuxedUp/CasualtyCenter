@@ -2,7 +2,15 @@
 
 Updated: 2026-11-18. Verify Git/process/file state before acting.
 
-## Unreleased supplied art pass
+## 0.16.1 client tester build
+
+Built, packaged, and installed with the game closed into the existing single plugin location. The tester ZIP contains the matching DLL, eight WAVs, checksum manifest, and [test checklist](TEST-0.16.1.md). Both peers should confirm 0.16.1 in their startup logs. The 12 art sprites are embedded in the DLL.
+
+Release build passed with zero warnings or errors. All 571 procedure, gesture and session checks passed. Live rendering remains pending.
+
+Built, archived, and installed DLL SHA-256: 1A1AE5393E5F7A4BF26D82986D4E792656DAF24EEB412946BC90250E5B90AD57. ZIP SHA-256: BA1F0ED01D8FE923B668E8A5034EB3ADA76EB86FA216336818B4F31ADB0B836F. Backup: work/backups/CasualtiesSurgery-before-0.16.1-20261118-182629.dll. Host log archive: work/diagnostics/before-0.16.1-20261118-182629.
+
+## Supplied art pass before delivery
 
 The supplied tool icons, wound sprites, gel, blood pool, shard and fallback bone are embedded in the plugin and wired into both surgery views. Lacerations narrow, ease open when they reopen and fade after confirmed suturing. See [ART-HANDOFF](ART-HANDOFF.md) for palette, layout and visual acceptance details. Release build and embedded artwork manifest verified. Live rendering remains to be checked. The delivered 0.16.0 build and package are historical references for this pass.
 
