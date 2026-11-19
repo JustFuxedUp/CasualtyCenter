@@ -2,9 +2,11 @@
 
 Updated: 2026-11-18. Verify Git/process/file state before acting.
 
-## Unreleased menu and wound artwork follow-up
+## 0.16.3 menu and wound artwork test patch
 
-The authority surgery menu uses per-procedure clinical eligibility from the read-only host overview. Buttons distinguish enabled, hovered, and disabled states. Consent, current access and operation conflicts remain checked on entry. Bruise edges feather, gel splashes rotate, and blood pools now render and accept suction at 128 or 98 units per side. Text beneath internal wounds is removed. Live appearance and menu behavior need a retest. The installed tester build remains the delivered 0.16.2 below. See [ART-HANDOFF](ART-HANDOFF.md#follow-up-artwork-and-menu-pass).
+The authority surgery menu uses per-procedure clinical eligibility from the read-only host overview. Buttons distinguish enabled, hovered, and disabled states. Consent, current access and operation conflicts remain checked on entry. Bruise edges feather, gel splashes rotate, and blood pools now render and accept suction at 128 or 98 units per side. Text beneath internal wounds is removed. Live appearance and menu behavior need a retest. Follow the [0.16.3 tester checklist](TEST-0.16.3.md). See [ART-HANDOFF](ART-HANDOFF.md#follow-up-artwork-and-menu-pass).
+
+Release build passed with zero warnings or errors and all 578 checks passed. Installed with the game closed. Built, installed, and packaged DLL SHA-256 32AA7A3A27D7D28923289E4818B1093FD8D51D18A2E06F1D1D7E15B6C6AE7EE7. ZIP SHA-256 7E6B272D069E55620B457883A9E25ED71EE391E8765AADF049878467F76C879C. Backup work/backups/CasualtiesSurgery-before-0.16.3-20261118-185913.dll. Host log archive work/diagnostics/before-0.16.3-20261118-185913.
 
 ## 0.16.2 solo feedback patch
 
